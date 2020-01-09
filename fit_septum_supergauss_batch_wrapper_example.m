@@ -10,7 +10,7 @@
 
 %% User-set parameters
 
-param.plot_im = 0; % plot septum images with fitted diameter
+param.plot_im = 1; % plot septum images with fitted diameter
 param.plot_raw = 1; % plot raw constriction vs. time data
 param.plot_filt = 0; % filtered data (crap removed)
 
