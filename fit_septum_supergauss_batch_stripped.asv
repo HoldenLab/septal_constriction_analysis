@@ -40,7 +40,7 @@ if param.plot_filt
 end
 
 subs=[]; diams=[]; fits=[]; rn=[]; t_con=[]; jj = 0; kk = 1;
-for ii = 1:param.ntracks
+for ii = 96:param.ntracks
     
     %% Load image stack and pull out individual septa
     
@@ -59,15 +59,14 @@ for ii = 1:param.ntracks
     
     improfs = fit_septum_supergauss(stack, param.plot_im, param);
     
-%     start_frame = tracks.Experiment.Lineage(ii).Trajectory.Bacteria(1).TRAJECTORY.frame.start + 1; % index in this file starts at zero, so add one
-%     end_frame = tracks.Experiment.Lineage(ii).Trajectory.Bacteria(1).TRAJECTORY.frame.end + 1;
-%     start_frame_new = max([start_frame - param.n_frames_before, 1]); % add a few extra frames before
-%     frames = (start_frame_new:end_frame)';
+    start_frame = tracks.Experiment.Lineage(ii).Trajectory.Bacteria(1).TRAJECTORY.frame.start + 1; % index in this file starts at zero, so add one
+    end_frame = tracks.Experiment.Lineage(ii).Trajectory.Bacteria(1).TRAJECTORY.frame.end + 1;
+    start_frame_new = max([start_frame - param.n_frames_before, 1]); % add a few extra frames before
+    frames = (start_frame_new:end_frame)';
+    frames = double(frames);
     
     start_frame_new = max([imframes(1) - param.n_frames_before, 1]); % add a few extra frames before
-    frames = ([(start_frame_new:start_frame_new+param.n_frames_before-1) imframes] + 1)';
-    
-    frames = double(frames);
+    frames = (start_frame_new:start_frame_new + param.n_frames_be
     
     % add in excluded frames (that were out of focus or whatever)
     if ~isempty(param.exclude_frames) && any(frames(1)<param.exclude_frames) && any(frames(end)>param.exclude_frames)
