@@ -16,9 +16,10 @@
 function [ud, t_con] = fit_septum_supergauss_batch_stripped(fullstack, tracks, param)
 
 if param.plot_raw
-    fname_base = extractBefore(param.im_file, '.ome');
-    fname_base = erase(fname_base, 'MMStack_');
-    gr = figure('FileName', [param.path '/' param.analysis_date '_' fname_base '_const_raw.fig']);
+%     fname_base = extractBefore(param.im_file, '.ome');
+%     fname_base = erase(fname_base, 'MMStack_');
+%     gr = figure('FileName', [param.path '/' param.analysis_date '_' fname_base '_const_raw.fig']);
+    gr = figure('FileName', [param.path '/' param.analysis_date]);
     hh = gca;
     hold on
     box on
@@ -31,6 +32,7 @@ if param.plot_filt
     fname_base = extractBefore(param.im_file, '.ome');
     fname_base = erase(fname_base, 'MMStack_');
     gf = figure('FileName', [param.path '/' param.analysis_date '_' fname_base '_const_filt.fig']);
+    figure
     gg = gca;
     hold on
     box on
@@ -57,7 +59,7 @@ for ii = 1:param.ntracks
     
     %% Fit all frames to explicit septum model
     
-    improfs = fit_septum_supergauss(stack, param.plot_im, param);
+    [improfs, improfs_ax] = fit_septum_supergauss(stack, param.plot_im, param);
     
 %     start_frame = tracks.Experiment.Lineage(ii).Trajectory.Bacteria(1).TRAJECTORY.frame.start + 1; % index in this file starts at zero, so add one
 %     end_frame = tracks.Experiment.Lineage(ii).Trajectory.Bacteria(1).TRAJECTORY.frame.end + 1;
@@ -79,12 +81,14 @@ for ii = 1:param.ntracks
             %         centy = [centy(1:exind-1) NaN centy(exind:end)];
 %             fits{ii} = [fits{ii}(1:exind(kk)-1,:); ones(1,4)*NaN; fits{ii}(exind(kk):end,:)];
             improfs = [improfs(1:exind(kk)-1,:); ones(1,size(improfs,2))*NaN; improfs(exind(kk):end,:)];
+            
+            improfs_ax = [improfs_ax(1:exind(kk)-1,:); ones(1,size(improfs_ax,2))*NaN; improfs_ax(exind(kk):end,:)];
         end
     end
     
     time = frames * param.interval; % [min]
     
-    FWHM = []; intensity = []; widthresult = []; Rsq = []; se = [];
+    FWHM = []; intensity = []; widthResult = []; Rsq = []; se = []; FWHM_ax = []; se_ax = [];
     for jj = 1:size(improfs,1)
         linep = improfs(jj,~isnan(improfs(jj,:)));
         if isempty(linep) || length(linep)<5
@@ -96,6 +100,15 @@ for ii = 1:param.ntracks
             [FWHM(jj), intensity(jj), widthResult(:,jj), Rsq(jj), se(:,jj)] = fitProfile_public(linep,[],1);
         end
     end
+    for kk = 1:size(improfs_ax,1)
+        linep_ax = improfs_ax(kk,~isnan(improfs_ax(kk,:)));
+        if isempty(linep_ax) || length(linep_ax)<5
+            FWHM_ax(kk) = NaN;
+            se_ax(:,kk) = ones(1,5)*NaN;
+        else
+            [FWHM_ax(kk), ~, ~, ~, se_ax(:,kk)] = fitProfile_public(linep_ax,[],1); % axial FWHM
+        end
+    end
     
     immin = time(1);
     immax = time(1)+size(improfs,1);
@@ -103,14 +116,22 @@ for ii = 1:param.ntracks
     MAXDIAM = 1500;
     MINDIAM = 50;
     FWHM = FWHM.*param.pixSz;
+    FWHM_ax = FWHM_ax.*param.pixSz;
 %     t = immin:immax;
     t = time;
+    t_ax = time;
+    int_ax = intensity;
     badIdx = FWHM>MAXDIAM | FWHM<MINDIAM | isnan(FWHM);
+    badIdx_ax = FWHM_ax<MINDIAM | isnan(FWHM_ax);
     FWHM(badIdx) = [];
     intensity(badIdx) = [];
     t(badIdx) = [];
 %     Rsq(badIdx) = [];
-    se(:, badIdx) = [];
+    se(:,badIdx) = [];
+    FWHM_ax(badIdx_ax) = [];
+    t_ax(badIdx_ax) = [];
+    se_ax(:,badIdx_ax) = [];
+    int_ax(badIdx_ax) = [];
     
 %     badIdx2 = Rsq < 0.6;
 %     FWHM(badIdx2) = [];
@@ -122,30 +143,45 @@ for ii = 1:param.ntracks
     FWHM(badIdx3) = [];
     intensity(badIdx3) = [];
     t(badIdx3) = [];
+    badIdx3_ax = se_ax(4,:) > 2;
+    FWHM_ax(badIdx3_ax) = [];
+    t_ax(badIdx3_ax) = [];
+    int_ax(badIdx3_ax) = [];
     
     % need a way to delete all the crap after constriction finishes
     % Constriction end is just after intensity peak
-    [iMax, idxMax]= max(intensity);
+    [iMax, idxMax] = max(intensity);
+    [iMax_ax, idxMax_ax] = max(int_ax);
 %     tMax= t(idxMax);
     
-    [iMin, idx]= min(intensity(t>mean(t)));
+    [iMin, idx] = min(intensity(t>mean(t)));
+    iMin_ax = min(int_ax(t_ax>mean(t_ax)));
 %     tMin=t(idx);
     iConsEnd = (iMax+iMin)/2;
-    tCrop= t(idxMax:end);
+    tCrop = t(idxMax:end);
     iCrop = intensity(idxMax:end);
+    iConsEnd_ax = (iMax_ax+iMin_ax)/2;
+    tCrop_ax = t_ax(idxMax_ax:end);
+    iCrop_ax = int_ax(idxMax_ax:end);
     
     iDiff = iCrop-iConsEnd;
     iConsEnd = iCrop(find(iDiff<0,1)-1);
     tConsEnd = tCrop(find(iDiff<0,1)-1);
+    iDiff_ax = iCrop_ax - iConsEnd_ax;
+    tConsEnd_ax = tCrop_ax(find(iDiff_ax<0,1)-1);
     
     if isempty(tConsEnd)
         continue
     end
     tidx = find(t==tConsEnd);
+    tidx_ax = find(t_ax==tConsEnd_ax);
     
-    tCrop= t(1:tidx);
+    tCrop = t(1:tidx);
     fCrop = FWHM(1:tidx);
     iCrop = intensity(1:tidx);
+    tCrop_ax = t_ax(1:tidx_ax);
+    fCrop_ax = FWHM_ax(1:tidx_ax);
+    iCrop_ax = int_ax(1:tidx_ax);
     
     ud.imDat(ii).num = ii;
     ud.imDat(ii).line_profiles = improfs;
@@ -167,13 +203,19 @@ for ii = 1:param.ntracks
 
     ud.rawDat(ii).num = ii;
     ud.rawDat(ii).width = FWHM;
-    ud.rawDat(ii).time = time;
+    ud.rawDat(ii).time = t;
+    ud.rawDat(ii).intensity = intensity; % added 200120
+    ud.rawDat(ii).width_ax = FWHM_ax;
+    ud.rawDat(ii).time_ax = t_ax;
     
 %     time(isnan(diams)) = [];
 %     diams(isnan(diams)) = [];
-%     
+    
     ud.rawDat(ii).cuttime = tCrop;
     ud.rawDat(ii).cutdiams = fCrop;
+    ud.rawDat(ii).cutint = iCrop;
+    ud.rawDat(ii).cuttime_ax = tCrop_ax;
+    ud.rawDat(ii).cutdiams_ax = fCrop_ax;
     
     if param.plot_raw
         plot(hh, tCrop, fCrop, 'DisplayName', num2str(ii))

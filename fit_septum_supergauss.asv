@@ -189,10 +189,6 @@ for ii = 1:size(imstack,3)
     % direction
     slp = (y0(ii,2)-y0(ii,1)) / (x0(ii,2)-x0(ii,1));
     yint = y0(ii,2) - (slp*x0(ii,2));
-    if isinf(slp)
-        orthprof(ii,:) = ones(size(orthprof,2),1)*NaN;
-        continue
-    end
     orth_space = 0.1;
     x0_orth_ind = min([x0(ii,1) x0(ii,2)]):orth_space:max([x0(ii,1) x0(ii,2)]);
     x_orth2 = []; y_orth2 = []; ip_orth = [];

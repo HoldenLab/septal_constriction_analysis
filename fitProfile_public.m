@@ -23,6 +23,7 @@ FWHM = 2*sqrt(2)*par_d*(log(2))^(1/(2*par_e));
 x0 = xC - FWHM/2;
 x1 = xC + FWHM/2;
 widthResult = [xC, x0, x1];
-intensity = max(y);
+% intensity = max(y);
+intensity = sum(y);
 end
 
