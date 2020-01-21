@@ -12,11 +12,13 @@ plot_filter_dat = 0;
 plot_t_con = 0;
 plot_alph = 0;
 plot_d_vs_alph = 0;
-plot_perturbed = 1;
+plot_perturbed = 0;
+plot_intensity = 0;
+plot_width_axial = 1;
 
+model = 'parabolic';
 chiSq_thresh = 6e4;
 Rsq_thresh = 0.8;
-% Rsq_thresh = 0;
 t0_thresh = 1000; % [min] standard error from fit
 alph_thresh = 6e11; % [nm^2/min] standard error from fit
 
@@ -38,17 +40,16 @@ end
 % dat = cutstruct(dat, 'cuttime', tcut);
 
 if fit_dat
-    ud = [];
     figure
     hold on
     box on
-    filts1 = []; filts2 = []; filts3 = []; filts4 = []; rn = []; se = []; Rsq = [];
+    filts1 = []; filts2 = []; filts3 = []; filts4 = []; rn = []; Rsq = [];
     for ii = 1:length(dat)
         
         % cut anything starting after treatment time
-        if isempty(dat(ii).cuttime) || dat(ii).cuttime(1) > dat(ii).param.t_cpd
-            continue
-        end
+%         if isempty(dat(ii).cuttime) || dat(ii).cuttime(1) > dat(ii).param.t_cpd
+%             continue
+%         end
         
         ffit = dat(ii).cuttime'; % [min]
         if mean(dat(ii).cutdiams)<50 % earlier data was in pixels rather than nm
@@ -109,14 +110,8 @@ if fit_dat
             continue
         end
 
-        [cfit, rn(ii), se(ii,:), fcn] = fit_constriction_data(ffit_c, lfit_c, dat(ii).param.model);
-        
-        ud.fcn = fcn;
-        ud.fitDat(ii).num = ii;
-        ud.fitDat(ii).time = ffit;
-        ud.fitDat(ii).width = lfit;
-        ud.fitDat(ii).constFitVals = cfit;
-        
+        [cfit, rn(ii), ~, fcn] = fit_constriction_data(ffit_c, lfit_c, model);
+
         dat(ii).fcn = fcn;
         dat(ii).fitDat.num = ii;
         dat(ii).fitDat.time = ffit;
@@ -128,11 +123,9 @@ if fit_dat
         dat(ii).fitDat.Rsq = Rsq;
         
         chisq = rn(ii)/sqrt(length(ffit));
-        ud.fitDat(ii).constFitChiSq = chisq;
         
         dat(ii).fitDat.constFitChiSq = chisq;
         
-%         if chisq < chiSq_thresh && se(ii,1) < t0_thresh && se(ii,2) < alph_thresh
         if Rsq > Rsq_thresh
             plot(ffit-dat(ii).param.t_cpd, lfit, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num)], 'linew', 1)
 %             hold on
@@ -265,9 +258,13 @@ if plot_alph
     alph_post = [alph_post; ones(length(alph_pre)-length(alph_post),1)*NaN];
     teff_pre = [teff_pre; ones(length(teff_post)-length(teff_pre),1)*NaN];
     teff_post = [teff_post; ones(length(teff_pre)-length(teff_post),1)*NaN];
-    
+
     figure
-    violinplot([teff_pre teff_post])
+    if any(~isnan(teff_pre))
+        violinplot([teff_pre teff_post])
+    else
+        violinplot(teff_post)
+    end
 end
 
 if plot_d_vs_alph
@@ -318,5 +315,24 @@ if plot_perturbed
     end
 end
 
+if plot_intensity
+    figure('FileName', [path '/' today '_intensity.fig'])
+    hold on
+    box on
+    
+    for ii = 1:length(dat)
+        plot(dat(ii).cuttime, dat(ii).cutint, ...
+            'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num)])
+    end
+end
 
-
+if plot_width_axial
+    figure('FileName', [path '/' today '_width_axial.fig'])
+    hold on
+    box on
+    
+    for ii = 1:length(dat)
+        plot(dat(ii).cuttime_ax, dat(ii).cutdiams_ax, ...
+            'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num)])
+    end
+end
