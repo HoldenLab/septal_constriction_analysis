@@ -10,9 +10,10 @@
 
 %% User-set parameters
 
-param.plot_im = 1; % plot septum images with fitted diameter
+param.plot_im = 0; % plot septum images with fitted diameter
+param.plot_gauss = 0; % plot line profile and generalized gauss fit
 param.plot_raw = 1; % plot raw constriction vs. time data
-param.plot_filt = 0; % filtered data (crap removed)
+param.intensity_cut = 0; % cut end of traces based on intensity drop
 
 % params for separate_microbej_tracks
 param.s_box = 24; % size of sub-images

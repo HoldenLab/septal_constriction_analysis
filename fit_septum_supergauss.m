@@ -16,10 +16,13 @@ function [improf, orthprof] = fit_septum_supergauss(imstack, plot_im, param)
 
 % gw = psfFWHM/2.35/pixSz; % Gaussian width (sigma)
 
+plot_gauss = param.plot_gauss;
+
 if plot_im
     figure
     h_im = gca;
-    
+end
+if plot_gauss
     figure
     h_gauss = gca;
 end
@@ -32,7 +35,8 @@ for ii = 1:size(imstack,3)
     if plot_im
         hold(h_im, 'off')
         imagesc(h_im, frame)
-        
+    end    
+    if plot_gauss
         hold(h_gauss, 'off')
     end
     
@@ -208,13 +212,14 @@ for ii = 1:size(imstack,3)
         % line profile along cell axis with shifted 'central' coordinates
         ip_orth(jj,:) = improfile(frame, x_orth2(jj,:), y_orth2(jj,:))';
 
-        if plot_im && 1 % for debugging
+        if plot_im && 0 % for debugging
             hold(h_im, 'on')
             slp_o1 = (y_orth2(jj,2)-y_orth2(jj,1)) / (x_orth2(jj,2)-x_orth2(jj,1));
             yint_o1 = y_orth2(jj,2) - (slp_o1*x_orth2(jj,2));
             tv_o1 = min([x_orth2(jj,1) x_orth2(jj,2)]):max([x_orth2(jj,1) x_orth2(jj,2)]);
             plot(h_im, tv_o1, tv_o1*slp_o1+yint_o1, 'r', 'linew', 3)
-            
+        end
+        if plot_gauss && 0
             hold(h_gauss, 'on')
             plot(h_gauss, ip_orth(jj,:))
         end
@@ -225,6 +230,9 @@ for ii = 1:size(imstack,3)
         orthprof = [orthprof newcol];
     elseif ~isempty(orthprof) && size(ip_orth,2)<size(orthprof,2)
         ip_orth = [ip_orth ones(size(ip_orth,1),size(orthprof,2)-size(ip_orth,2))*NaN];
+    end
+    if ii>1 && isempty(orthprof)
+        orthprof = ones(ii-1,size(ip_orth,2))*NaN;
     end
     orthprof(ii,:) = nansum(ip_orth,1)*orth_space; % integral rather than sum. will not give accurate intensity measurement!
 
@@ -250,7 +258,8 @@ for ii = 1:size(imstack,3)
         
         tv_o = min([x_orth(ii,1) x_orth(ii,2)]):max([x_orth(ii,1) x_orth(ii,2)]);
         plot(h_im, tv_o, tv_o*slp_o+yint_o, 'r', 'linew', 3)
-        
+    end
+    if plot_gauss
         plot(h_gauss, improf(ii,:))
     end
     

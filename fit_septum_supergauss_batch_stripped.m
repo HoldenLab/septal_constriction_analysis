@@ -13,13 +13,17 @@
 % 3. fit_constriction_data fits the septum diameter vs. time to a model of
 % the user's choice.
 
-function [ud, t_con] = fit_septum_supergauss_batch_stripped(fullstack, tracks, param)
+function [ud, t_con] = fit_septum_supergauss_batch_stripped(fullstack, tracks, param, tracknums)
+
+if nargin < 4
+    tracknums = 1:param.ntracks;
+end
 
 if param.plot_raw
-%     fname_base = extractBefore(param.im_file, '.ome');
-%     fname_base = erase(fname_base, 'MMStack_');
-%     gr = figure('FileName', [param.path '/' param.analysis_date '_' fname_base '_const_raw.fig']);
-    gr = figure('FileName', [param.path '/' param.analysis_date]);
+    fname_base = extractBefore(param.im_file, '.ome');
+    fname_base = erase(fname_base, 'MMStack_');
+    gr = figure('FileName', [param.path '/' param.analysis_date '_' fname_base '_const_raw.fig']);
+%     gr = figure('FileName', [param.path '/' param.analysis_date]);
     hh = gca;
     hold on
     box on
@@ -28,21 +32,8 @@ if param.plot_raw
     ylabel(hh,'Septum width (nm)')
 end
 
-if param.plot_filt
-    fname_base = extractBefore(param.im_file, '.ome');
-    fname_base = erase(fname_base, 'MMStack_');
-    gf = figure('FileName', [param.path '/' param.analysis_date '_' fname_base '_const_filt.fig']);
-    figure
-    gg = gca;
-    hold on
-    box on
-    title(['Filtered constriction traces for ' strrep(param.im_file,'_','\_')])
-    xlabel(gg,'Time (min)')
-    ylabel(gg,'Septum width (nm)')
-end
-
 subs=[]; diams=[]; fits=[]; rn=[]; t_con=[]; jj = 0; kk = 1;
-for ii = 1:param.ntracks
+for ii = tracknums
     
     %% Load image stack and pull out individual septa
     
@@ -57,7 +48,7 @@ for ii = 1:param.ntracks
         [stack, centx, centy, imframes] = separate_microbej_tracks(fullstack, tracks, ii, param.s_box, param.n_frames_before);
     end
     
-    %% Fit all frames to explicit septum model
+    %% Obtain line profiles for all frames
     
     [improfs, improfs_ax] = fit_septum_supergauss(stack, param.plot_im, param);
     
@@ -66,10 +57,19 @@ for ii = 1:param.ntracks
 %     start_frame_new = max([start_frame - param.n_frames_before, 1]); % add a few extra frames before
 %     frames = (start_frame_new:end_frame)';
     
+    avail_frames_before = imframes(1); % how many frames before can we use?
+    frames_before = min([param.n_frames_before avail_frames_before]);
     start_frame_new = max([imframes(1) - param.n_frames_before, 1]); % add a few extra frames before
-    frames = ([(start_frame_new:start_frame_new+param.n_frames_before-1) imframes] + 1)';
+    frames = ([(start_frame_new:start_frame_new+frames_before-1) imframes])'; % removed + 1 200124
+%     frames = ([(start_frame_new:start_frame_new+frames_before-1) imframes] + 1)';
     
     frames = double(frames);
+    
+    ud.imDat(ii).num = ii;
+    ud.imDat(ii).line_profiles = improfs;
+    ud.imDat(ii).frames = (imframes + 1)';
+    ud.imDat(ii).centx = centx';
+    ud.imDat(ii).centy = centy';
     
     % add in excluded frames (that were out of focus or whatever)
     if ~isempty(param.exclude_frames) && any(frames(1)<param.exclude_frames) && any(frames(end)>param.exclude_frames)
@@ -87,6 +87,8 @@ for ii = 1:param.ntracks
     end
     
     time = frames * param.interval; % [min]
+    
+    %% Fit line profiles to generalized Gaussian function to get FWHM
     
     FWHM = []; intensity = []; widthResult = []; Rsq = []; se = []; FWHM_ax = []; se_ax = [];
     for jj = 1:size(improfs,1)
@@ -109,6 +111,8 @@ for ii = 1:param.ntracks
             [FWHM_ax(kk), ~, ~, ~, se_ax(:,kk)] = fitProfile_public(linep_ax,[],1); % axial FWHM
         end
     end
+    
+    %% Cut results
     
     immin = time(1);
     immax = time(1)+size(improfs,1);
@@ -148,59 +152,6 @@ for ii = 1:param.ntracks
     t_ax(badIdx3_ax) = [];
     int_ax(badIdx3_ax) = [];
     
-    % need a way to delete all the crap after constriction finishes
-    % Constriction end is just after intensity peak
-    [iMax, idxMax] = max(intensity);
-    [iMax_ax, idxMax_ax] = max(int_ax);
-%     tMax= t(idxMax);
-    
-    [iMin, idx] = min(intensity(t>mean(t)));
-    iMin_ax = min(int_ax(t_ax>mean(t_ax)));
-%     tMin=t(idx);
-    iConsEnd = (iMax+iMin)/2;
-    tCrop = t(idxMax:end);
-    iCrop = intensity(idxMax:end);
-    iConsEnd_ax = (iMax_ax+iMin_ax)/2;
-    tCrop_ax = t_ax(idxMax_ax:end);
-    iCrop_ax = int_ax(idxMax_ax:end);
-    
-    iDiff = iCrop-iConsEnd;
-    iConsEnd = iCrop(find(iDiff<0,1)-1);
-    tConsEnd = tCrop(find(iDiff<0,1)-1);
-    iDiff_ax = iCrop_ax - iConsEnd_ax;
-    tConsEnd_ax = tCrop_ax(find(iDiff_ax<0,1)-1);
-    
-    if isempty(tConsEnd)
-        continue
-    end
-    tidx = find(t==tConsEnd);
-    tidx_ax = find(t_ax==tConsEnd_ax);
-    
-    tCrop = t(1:tidx);
-    fCrop = FWHM(1:tidx);
-    iCrop = intensity(1:tidx);
-    tCrop_ax = t_ax(1:tidx_ax);
-    fCrop_ax = FWHM_ax(1:tidx_ax);
-    iCrop_ax = int_ax(1:tidx_ax);
-    
-    ud.imDat(ii).num = ii;
-    ud.imDat(ii).line_profiles = improfs;
-    ud.imDat(ii).frames = (imframes + 1)';
-    ud.imDat(ii).centx = centx';
-    ud.imDat(ii).centy = centy';
-    
-    % Deprecated 190918
-    %     if orientation_cut
-    %         sept_or = atan((fits{ii}(:,4)-fits{ii}(:,2))./(fits{ii}(:,3)-fits{ii}(:,1))) * 180 / pi; % orientation of 'septa' determined by fits
-    %         goodones = sept_or < -cell_or(1)+90+40 & sept_or > -cell_or(1)+90-40;
-    %         frames(~goodones) = [];
-    %         fits{ii}(~goodones,:) = []; % remove septa not orthogonal to cell axis
-    %     end
-    
-%     if isempty(time)
-%         continue
-%     end
-
     ud.rawDat(ii).num = ii;
     ud.rawDat(ii).width = FWHM;
     ud.rawDat(ii).time = t;
@@ -208,68 +159,67 @@ for ii = 1:param.ntracks
     ud.rawDat(ii).width_ax = FWHM_ax;
     ud.rawDat(ii).time_ax = t_ax;
     
-%     time(isnan(diams)) = [];
-%     diams(isnan(diams)) = [];
+    % need a way to delete all the crap after constriction finishes
+    % Constriction end is just after intensity peak
+    if param.intensity_cut
+        [iMax, idxMax] = max(intensity);
+        [iMax_ax, idxMax_ax] = max(int_ax);
+        %     tMax= t(idxMax);
+        
+        [iMin, idx] = min(intensity(t>mean(t)));
+        iMin_ax = min(int_ax(t_ax>mean(t_ax)));
+        %     tMin=t(idx);
+        iConsEnd = (iMax+iMin)/2;
+        tCrop = t(idxMax:end);
+        iCrop = intensity(idxMax:end);
+        iConsEnd_ax = (iMax_ax+iMin_ax)/2;
+        tCrop_ax = t_ax(idxMax_ax:end);
+        iCrop_ax = int_ax(idxMax_ax:end);
+        
+        iDiff = iCrop-iConsEnd;
+        iConsEnd = iCrop(find(iDiff<0,1)-1);
+        tConsEnd = tCrop(find(iDiff<0,1)-1);
+        iDiff_ax = iCrop_ax - iConsEnd_ax;
+        tConsEnd_ax = tCrop_ax(find(iDiff_ax<0,1)-1);
+        
+        if isempty(tConsEnd)
+            continue
+        end
+        if isempty(tConsEnd_ax)
+            continue
+        end
+        tidx = find(t==tConsEnd);
+        tidx_ax = find(t_ax==tConsEnd_ax);
+        
+        tCrop = t(1:tidx);
+        fCrop = FWHM(1:tidx);
+        iCrop = intensity(1:tidx);
+        tCrop_ax = t_ax(1:tidx_ax);
+        fCrop_ax = FWHM_ax(1:tidx_ax);
+        iCrop_ax = int_ax(1:tidx_ax);
+    else
+        tCrop = t;
+        fCrop = FWHM;
+        iCrop = intensity;
+        tCrop_ax = t_ax;
+        fCrop_ax = FWHM_ax;
+    end
     
     ud.rawDat(ii).cuttime = tCrop;
     ud.rawDat(ii).cutdiams = fCrop;
     ud.rawDat(ii).cutint = iCrop;
     ud.rawDat(ii).cuttime_ax = tCrop_ax;
     ud.rawDat(ii).cutdiams_ax = fCrop_ax;
+
+%     time(isnan(diams)) = [];
+%     diams(isnan(diams)) = [];
     
     if param.plot_raw
         plot(hh, tCrop, fCrop, 'DisplayName', num2str(ii))
     end
-    
-    %% Fit trace of septum diameter vs. time to constriction model
-    
-%     if param.fit_model
-%         
-%         tfit = time(diams~=0); % [min]
-%         dfit = diams(diams~=0); % [nm]
-%         
-%         % trim to remove ends of traces (typically not reliable)
-%         indx = find(dfit<200, 1, 'first');
-%         tfit((indx+1):end) = [];
-%         dfit((indx+1):end) = [];
-%         
-%         if length(tfit)<6 % too short - don't bother trying to fit
-%             continue
-%         end
-% 
-%         jj = jj + 1;
-%         [cfit, rn(ii), se(ii,:), fcn] = fit_constriction_data(tfit, dfit, param.model);
-%         
-%         ud.fcn = fcn;
-%         ud.fitDat(jj).num = ii;
-%         ud.fitDat(jj).time = tfit;
-%         ud.fitDat(jj).width = dfit;
-%         ud.fitDat(jj).constFitVals = cfit;
-%         
-%         chisq = rn(ii)/length(tfit);
-%         ud.fitDat(jj).constFitChiSq = rn(ii)/length(tfit);
-%         
-%         if ~isempty(tfit) && chisq<param.chi_thresh
-%             
-%             t_con(ii) = tfit(end) - cfit(1);
-%             
-%             if param.plot_filt
-%                 plot(gg, tfit, dfit, 'linew', 1, 'DisplayName', num2str(ii))
-%                 tvf = tfit(1):0.1:tfit(end);
-%                 plot(gg, tvf, fcn(cfit,tvf), 'k', 'DisplayName', '')
-%             end
-%         end
-%     end
+
 end
 
 ud.param = param;
 
 set(gr, 'UserData', ud)
-
-% if param.plot_filt
-% 
-%     set(gf, 'UserData', ud)
-%     
-%     tv = 0:1200;
-%     plot(gg, ones(length(tv),1)*param.t_cpd, tv, 'r')
-% end
