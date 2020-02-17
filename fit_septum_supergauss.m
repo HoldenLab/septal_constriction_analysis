@@ -4,7 +4,7 @@
 % This function fits an image of a bacterial septum to an explicit model
 % using a minimization routine.
 
-function [improf, orthprof] = fit_septum_supergauss(imstack, plot_im, param)
+function [improf, orthprof, fitex] = fit_septum_supergauss(imstack, plot_im, param)
 
 % fval_thresh = param.fval_thresh;
 % ssim_thresh = param.ssim_thresh;
@@ -16,7 +16,8 @@ function [improf, orthprof] = fit_septum_supergauss(imstack, plot_im, param)
 
 % gw = psfFWHM/2.35/pixSz; % Gaussian width (sigma)
 
-plot_gauss = param.plot_gauss;
+% plot_gauss = param.plot_gauss;
+plot_gauss = 0;
 
 if plot_im
     figure
@@ -27,7 +28,7 @@ if plot_gauss
     h_gauss = gca;
 end
 
-fin = []; cell_or = []; sept_or = []; ssimval = []; improf = []; orthprof = [];
+fin = []; ssimval = []; improf = []; orthprof = [];
 for ii = 1:size(imstack,3)
     
     frame = imstack(:,:,ii);
@@ -99,11 +100,6 @@ for ii = 1:size(imstack,3)
 %         end
 %     end
     
-    % Deprecated 190913
-%     bwframe2 = seg_f > 1;
-%     bwframe2_or = regionprops(bwframe2,'Orientation');
-%     cell_or(ii) = max(cat(1,bwframe2_or.Orientation)); % get orientation of cell by cytoplasmic fluorescence
-    
     % blur
     fbgsub = imgaussfilt(fbgsub,1.5);
     fbgsub2 = imgaussfilt(fbgsub2, 1.5);
@@ -130,9 +126,6 @@ for ii = 1:size(imstack,3)
         
     elseif size(cents,1) == 1 % mature ring
         
-        % Deprecated 190913
-        %         sept_or(ii) = max(cat(1, props.Orientation));
-        
         cent_pos = cents;
         guess_th = -props.Orientation * pi/180; % minus sign because it needs to be reflected about y axis.
         %             guess_th = atan((edge2(2)-edge1(2))/(edge2(1)-edge1(1)));
@@ -156,7 +149,7 @@ for ii = 1:size(imstack,3)
     wid = 1.2;
     b0 = [cent_pos guess_r wid guess_th 1 0];
     
-    r0 = 1500 / 2 / 65; % [pix]
+    r0 = 1800 / 2 / 65; % [pix]
     x0(ii,:) = [b0(1)+r0*cos(b0(5)) b0(1)-r0*cos(b0(5))];
     y0(ii,:) = [b0(2)+r0*sin(b0(5)) b0(2)-r0*sin(b0(5))];
     
@@ -188,6 +181,36 @@ for ii = 1:size(imstack,3)
     end
     
     improf(ii,:) = ip;
+    
+    imp = improf(ii,~isnan(improf(ii,:)));
+    imp_proc = (imp-min(imp));
+    imp_proc = imp_proc/max(imp_proc);
+    [pks, locs] = findpeaks(imp_proc);
+    pkmat = [pks' locs'];
+    pkmat = sortrows(pkmat);
+    if size(pkmat,1)>1
+        initwidth = abs((pkmat(end)-pkmat(end-1))/1.5);
+    else
+        initwidth = 3;
+    end
+    initguess = [length(imp)/2+1 initwidth];
+    options = optimset('Display', 'off');
+    range = 1:length(imp);
+%     lb = [0 0];
+%     ub = [length(imp) 15];
+%     range = -length(imp)/20:0.1:length(imp)/20 - 0.1;
+%     fitex = lsqcurvefit(@(a,x)septum_model_1D(a(1),a(2),250,65,x), initguess, range, imp_proc, lb, ub);
+    fitex(ii,:) = fminsearch(@(x)septum_1D_obj(imp_proc,x,range,param), initguess, options);
+%     fitex = fmincon(@(x)septum_1D_obj(imp_proc,x,range,param), initguess, [], [], [], [], lb, ub);
+    
+    if param.plot_explicit
+        figure
+        hold on
+        plot(range, imp_proc)
+%         tr = 1:0.1:length(imp);
+%         plot(tr,septum_model_1D(fitex(1),fitex(2),250,65,tr))
+        plot(range, septum_model_1D(fitex(ii,1),fitex(ii,2),250,65,range))
+    end
     
     % Get line profiles along cell axis to get width of septum in that
     % direction

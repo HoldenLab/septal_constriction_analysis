@@ -13,17 +13,19 @@
 % 3. fit_constriction_data fits the septum diameter vs. time to a model of
 % the user's choice.
 
-function [ud, t_con] = fit_septum_supergauss_batch_stripped(fullstack, tracks, param, tracknums)
+function ud = fit_septum_explicit_1D_batch_stripped(fullstack, tracks, param, tracknums)
 
 if nargin < 4
     tracknums = 1:param.ntracks;
 end
 
 if param.plot_raw
-    fname_base = extractBefore(param.im_file, '.ome');
-    fname_base = erase(fname_base, 'MMStack_');
-    gr = figure('FileName', [param.path '/' param.analysis_date '_' fname_base '_const_raw.fig']);
-    gr = figure('FileName', [param.path '/' param.analysis_date]);
+%     fname_base = extractBefore(param.im_file, '.ome');
+%     fname_base = erase(fname_base, 'MMStack_');
+%     fname = [param.path '/' param.analysis_date '_' fname_base '_const_raw.fig'];
+    fname = [param.path '/' param.analysis_date '_.fig'];
+    gr = figure('FileName', fname, 'Position', [100 100 500 400]);
+%     gr = figure('FileName', [param.path '/' param.analysis_date]);
     hh = gca;
     hold on
     box on
@@ -32,7 +34,6 @@ if param.plot_raw
     ylabel(hh,'Septum width (nm)')
 end
 
-subs=[]; diams=[]; fits=[]; rn=[]; t_con=[]; jj = 0; kk = 1;
 for ii = tracknums
     
     %% Load image stack and pull out individual septa
@@ -50,13 +51,8 @@ for ii = tracknums
     
     %% Obtain line profiles for all frames
     
-    [improfs, improfs_ax] = fit_septum_supergauss(stack, param.plot_im, param);
-    
-%     start_frame = tracks.Experiment.Lineage(ii).Trajectory.Bacteria(1).TRAJECTORY.frame.start + 1; % index in this file starts at zero, so add one
-%     end_frame = tracks.Experiment.Lineage(ii).Trajectory.Bacteria(1).TRAJECTORY.frame.end + 1;
-%     start_frame_new = max([start_frame - param.n_frames_before, 1]); % add a few extra frames before
-%     frames = (start_frame_new:end_frame)';
-    
+    [improfs_rad, improfs_ax, fit_rad, fit_ax] = fit_septum_explicit_1D(stack, param.plot_im, param);
+
     avail_frames_before = imframes(1); % how many frames before can we use?
     frames_before = min([param.n_frames_before avail_frames_before]);
     start_frame_new = max([imframes(1) - param.n_frames_before, 1]); % add a few extra frames before
@@ -66,7 +62,7 @@ for ii = tracknums
     frames = double(frames);
     
     ud.imDat(ii).num = ii;
-    ud.imDat(ii).line_profiles = improfs;
+    ud.imDat(ii).line_profiles = improfs_rad;
     ud.imDat(ii).frames = (imframes + 1)';
     ud.imDat(ii).centx = centx';
     ud.imDat(ii).centy = centy';
@@ -79,27 +75,31 @@ for ii = tracknums
             frames = [frames(1:exind(kk)-1); xx(kk); frames(exind(kk):end)+1];
             %         centx = [centx(1:exind-1) NaN centx(exind:end)];
             %         centy = [centy(1:exind-1) NaN centy(exind:end)];
-%             fits{ii} = [fits{ii}(1:exind(kk)-1,:); ones(1,4)*NaN; fits{ii}(exind(kk):end,:)];
-            improfs = [improfs(1:exind(kk)-1,:); ones(1,size(improfs,2))*NaN; improfs(exind(kk):end,:)];
+            improfs_rad = [improfs_rad(1:exind(kk)-1,:); ones(1,size(improfs_rad,2))*NaN; improfs_rad(exind(kk):end,:)];
             
             improfs_ax = [improfs_ax(1:exind(kk)-1,:); ones(1,size(improfs_ax,2))*NaN; improfs_ax(exind(kk):end,:)];
+            
+            fit_rad = [fit_rad(1:exind(kk)-1,:); ones(1,size(fit_rad,2))*NaN; fit_rad(exind(kk):end,:)];
         end
     end
+    
+    diams = abs(fit_rad(:,2)) *2*param.pixSz;
+    fiterrs = fit_rad(:,3);
+    
+    FWHM_ax = fit_ax *2*param.pixSz;
     
     time = frames * param.interval; % [min]
     
     %% Fit line profiles to generalized Gaussian function to get FWHM
     
-    FWHM = []; intensity = []; widthResult = []; Rsq = []; se = []; FWHM_ax = []; se_ax = [];
-    for jj = 1:size(improfs,1)
-        linep = improfs(jj,~isnan(improfs(jj,:)));
+    intensity = []; FWHM_ax = []; se_ax = [];
+    for jj = 1:size(improfs_rad,1)
+        linep = improfs_rad(jj,~isnan(improfs_rad(jj,:)));
         if isempty(linep) || length(linep)<5
-            FWHM(jj) = NaN;
             intensity(jj) = NaN;
-            widthResult(:,jj) = [NaN NaN NaN];
-            se(:,jj) = ones(1,5)*NaN;
         else
-            [FWHM(jj), intensity(jj), widthResult(:,jj), Rsq(jj), se(:,jj)] = fitProfile_public(linep,[],1);
+%             [~, intensity(jj)] = fitProfile_public(linep,[],1);
+            intensity(jj) = sum(linep);
         end
     end
     for kk = 1:size(improfs_ax,1)
@@ -111,109 +111,106 @@ for ii = tracknums
             [FWHM_ax(kk), ~, ~, ~, se_ax(:,kk)] = fitProfile_public(linep_ax,[],1); % axial FWHM
         end
     end
-    
-    %% Cut results
-    
-    immin = time(1);
-    immax = time(1)+size(improfs,1);
 
-    MAXDIAM = 1500;
+    %% Cut results
+
+    MAXDIAM = 1400;
     MINDIAM = 50;
-    FWHM = FWHM.*param.pixSz;
     FWHM_ax = FWHM_ax.*param.pixSz;
-%     t = immin:immax;
-    t = time;
     t_ax = time;
+    t_rad = time;
     int_ax = intensity;
-    badIdx = FWHM>MAXDIAM | FWHM<MINDIAM | isnan(FWHM);
+    int_rad = intensity;
     badIdx_ax = FWHM_ax<MINDIAM | isnan(FWHM_ax);
-    FWHM(badIdx) = [];
-    intensity(badIdx) = [];
-    t(badIdx) = [];
-%     Rsq(badIdx) = [];
-    se(:,badIdx) = [];
+    badIdx_rad = diams<MINDIAM | diams>MAXDIAM | isnan(diams);
     FWHM_ax(badIdx_ax) = [];
     t_ax(badIdx_ax) = [];
     se_ax(:,badIdx_ax) = [];
     int_ax(badIdx_ax) = [];
-    
-%     badIdx2 = Rsq < 0.6;
-%     FWHM(badIdx2) = [];
-%     intensity(badIdx2) = [];
-%     t(badIdx2) = [];
-%     se(:, badIdx2) = [];
-    
-    badIdx3 = se(4,:) > 100;
-    FWHM(badIdx3) = [];
-    intensity(badIdx3) = [];
-    t(badIdx3) = [];
+    diams(badIdx_rad) = [];
+    t_rad(badIdx_rad) = [];
+    int_rad(badIdx_rad) = [];
+    fiterrs(badIdx_rad) = [];
+
     badIdx3_ax = se_ax(4,:) > 2;
     FWHM_ax(badIdx3_ax) = [];
     t_ax(badIdx3_ax) = [];
     int_ax(badIdx3_ax) = [];
+    badIdx3_rad = fiterrs > 0.5;
+    diams(badIdx3_rad) = [];
+    t_rad(badIdx3_rad) = [];
+    int_rad(badIdx3_rad) = [];
     
     ud.rawDat(ii).num = ii;
-    ud.rawDat(ii).width = FWHM;
-    ud.rawDat(ii).time = t;
-    ud.rawDat(ii).intensity = intensity; % added 200120
+    ud.rawDat(ii).width = diams;
+    ud.rawDat(ii).time = t_rad;
+    ud.rawDat(ii).intensity = int_rad; % added 200120
     ud.rawDat(ii).width_ax = FWHM_ax;
     ud.rawDat(ii).time_ax = t_ax;
     
     % need a way to delete all the crap after constriction finishes
     % Constriction end is just after intensity peak
     if param.intensity_cut
-        [iMax, idxMax] = max(intensity);
         [iMax_ax, idxMax_ax] = max(int_ax);
-        %     tMax= t(idxMax);
-        
-        [iMin, idx] = min(intensity(t>mean(t)));
+        [iMax_rad, idxMax_ex] = max(int_rad);
+
         iMin_ax = min(int_ax(t_ax>mean(t_ax)));
-        %     tMin=t(idx);
-        iConsEnd = (iMax+iMin)/2;
-        tCrop = t(idxMax:end);
-        iCrop = intensity(idxMax:end);
+        iMin_rad = min(int_rad(t_rad>mean(t_rad)));
+
         iConsEnd_ax = (iMax_ax+iMin_ax)/2;
         tCrop_ax = t_ax(idxMax_ax:end);
         iCrop_ax = int_ax(idxMax_ax:end);
-        
-        iDiff = iCrop-iConsEnd;
-        iConsEnd = iCrop(find(iDiff<0,1)-1);
-        tConsEnd = tCrop(find(iDiff<0,1)-1);
+        iConsEnd_rad = (iMax_rad+iMin_rad)/2;
+        tCrop_rad = t_rad(idxMax_ex:end);
+        iCrop_rad = int_rad(idxMax_ex:end);
+
         iDiff_ax = iCrop_ax - iConsEnd_ax;
         tConsEnd_ax = tCrop_ax(find(iDiff_ax<0,1)-1);
-        
-        if isempty(tConsEnd)
-            continue
-        end
+        iDiff_rad = iCrop_rad - iConsEnd_rad;
+        tConsEnd_rad = tCrop_rad(find(iDiff_rad<0,1)-1);
+
         if isempty(tConsEnd_ax)
-            continue
+            tidx_ax = length(t_ax);
+        else
+            tidx_ax = find(t_ax==tConsEnd_ax);
         end
-        tidx = find(t==tConsEnd);
-        tidx_ax = find(t_ax==tConsEnd_ax);
-        
-        tCrop = t(1:tidx);
-        fCrop = FWHM(1:tidx);
-        iCrop = intensity(1:tidx);
+        if isempty(tConsEnd_rad)
+            tidx_rad = length(t_rad);
+        else
+            tidx_rad = find(t_rad==tConsEnd_rad);
+        end
+
+        dCrop = diams(1:tidx_rad);
+        iCrop = int_rad(1:tidx_rad);
         tCrop_ax = t_ax(1:tidx_ax);
         fCrop_ax = FWHM_ax(1:tidx_ax);
-        iCrop_ax = int_ax(1:tidx_ax);
+        tCrop_rad = t_rad(1:tidx_rad);
+    else
+        dCrop = diams;
+        iCrop = int_rad;
+        tCrop_ax = t_ax;
+        fCrop_ax = FWHM_ax;
+        tCrop_rad = t_rad;
     end
-
-%     time(isnan(diams)) = [];
-%     diams(isnan(diams)) = [];
     
-    ud.rawDat(ii).cuttime = tCrop;
-    ud.rawDat(ii).cutdiams = fCrop;
+    ud.rawDat(ii).cuttime = tCrop_rad;
+    ud.rawDat(ii).cutdiams = dCrop;
     ud.rawDat(ii).cutint = iCrop;
     ud.rawDat(ii).cuttime_ax = tCrop_ax;
     ud.rawDat(ii).cutdiams_ax = fCrop_ax;
-    
+
     if param.plot_raw
-        plot(hh, tCrop, fCrop, 'DisplayName', num2str(ii))
+        plot(hh, tCrop_rad, dCrop, 'DisplayName', num2str(ii))
     end
 
 end
 
 ud.param = param;
 
-set(gr, 'UserData', ud)
+if param.plot_raw
+    set(gr, 'UserData', ud)
+    
+    if param.save_raw
+        savefig(gr, fname)
+    end
+end
