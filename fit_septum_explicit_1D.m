@@ -27,7 +27,7 @@ if plot_explicit
     h_exp = gca;
 end
 
-improf=[]; orthprof=[]; fitvals=[]; fitvals_ax = [];
+improf=[]; orthprof=[]; fitvals=[]; fitvals_ax=[];
 for ii = 1:size(imstack,3)
     
     frame = imstack(:,:,ii);
