@@ -20,10 +20,20 @@ if nargin < 4
 end
 
 if param.plot_raw
-%     fname_base = extractBefore(param.im_file, '.ome');
-%     fname_base = erase(fname_base, 'MMStack_');
-%     fname = [param.path '/' param.analysis_date '_' fname_base '_const_raw.fig'];
-    fname = [param.path '/' param.analysis_date '_.fig'];
+    
+    % figure out file name format (different with different software)
+    isMM = strfind(param.im_file, '.ome');
+    if ~isempty(isMM) % micro-manager format
+        fname_base = extractBefore(param.im_file, '.ome');
+        fname_base = erase(fname_base, 'MMStack_');
+        fname = [param.path '/' param.analysis_date '_' fname_base '_const_raw.fig'];
+    else % NS elements format
+        fname_base = extractBefore(param.im_file, '.nd2 -');
+        fname_end = param.im_file(end-6:end);
+        fname = [param.path '/' param.analysis_date '_' fname_base '_pos' fname_end '_const_raw.fig'];
+%         fname = [param.path '/' param.analysis_date '_.fig'];
+    end
+    
     gr = figure('FileName', fname, 'Position', [100 100 500 400]);
 %     gr = figure('FileName', [param.path '/' param.analysis_date]);
     hh = gca;
@@ -80,6 +90,7 @@ for ii = tracknums
             improfs_ax = [improfs_ax(1:exind(kk)-1,:); ones(1,size(improfs_ax,2))*NaN; improfs_ax(exind(kk):end,:)];
             
             fit_rad = [fit_rad(1:exind(kk)-1,:); ones(1,size(fit_rad,2))*NaN; fit_rad(exind(kk):end,:)];
+            fit_ax = [fit_ax(1:exind(kk)-1,:); ones(1,size(fit_ax,2))*NaN; fit_ax(exind(kk):end,:)];
         end
     end
     
@@ -126,7 +137,7 @@ for ii = tracknums
     badIdx_rad = diams<MINDIAM | diams>MAXDIAM | isnan(diams);
     FWHM_ax(badIdx_ax) = [];
     t_ax(badIdx_ax) = [];
-    se_ax(:,badIdx_ax) = [];
+    se_ax(badIdx_ax) = [];
     int_ax(badIdx_ax) = [];
     diams(badIdx_rad) = [];
     t_rad(badIdx_rad) = [];
@@ -138,7 +149,8 @@ for ii = tracknums
     FWHM_ax(badIdx3_ax) = [];
     t_ax(badIdx3_ax) = [];
     int_ax(badIdx3_ax) = [];
-    badIdx3_rad = fiterrs > 0.5;
+    badIdx3_rad = fiterrs > 1.1;
+%     badIdx3_rad = fiterrs > 0.5;
     diams(badIdx3_rad) = [];
     t_rad(badIdx3_rad) = [];
     int_rad(badIdx3_rad) = [];

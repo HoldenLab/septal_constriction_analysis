@@ -9,6 +9,7 @@
 
 %% User-set parameters
 
+param.ZGFP = 0; % are these images ZGFP strain? changes some image processing.
 param.plot_im = 0; % plot septum images with fitted diameter
 param.plot_gauss = 0;
 param.plot_explicit = 0;

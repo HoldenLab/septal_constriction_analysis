@@ -19,6 +19,9 @@ pixSz = param.pixSz;
 
 prof_model = septum_model_1D(mu, R, psfFWHM, pixSz, range);
 
+sp = range(2)-range(1); % spacing
+prof_model = downsample(prof_model, uint8(1/sp)); % same number of points as image profile
+
 diff = prof_im - prof_model;
 
 obj = sum(sum(diff.^2));
