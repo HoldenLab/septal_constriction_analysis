@@ -7,7 +7,7 @@
 fit_dat = 1;
 
 plot_raw_dat = 0;
-plot_fit_dat = 0;
+plot_fit_dat = 1;
 plot_teff =  1;
 plot_d_vs_alph = 0;
 plot_perturbed = 0;
@@ -53,10 +53,26 @@ if plot_raw_dat
 end
 
 if fit_dat
+    
+    if plot_fit_dat
+        figure('FileName', [path '/' today '_fit_dat.fig'])
+        hold on
+        box on
+    end
+    
     for ii = 1:length(dat)
         
-        tfit = dat(ii).cuttime; % [min]
-        dfit = dat(ii).cutdiams; % [nm]
+        % make sure these are both column vectors
+        if size(dat(ii).cuttime,1)==1
+            tfit = dat(ii).cuttime'; % old format
+        else
+            tfit = dat(ii).cuttime; % [min]
+        end
+        if size(dat(ii).cutdiams,1)==1
+            dfit = dat(ii).cutdiams';
+        else
+            dfit = dat(ii).cutdiams; % [nm]
+        end
         
         if length(tfit)<3 % too short - exclude
             continue
@@ -179,10 +195,7 @@ if fit_dat
         dat(ii).fitDat.n_post = n_post;
 
         if plot_fit_dat
-            figure('FileName', [path '/' today '_fit_dat.fig'])
-            hold on
-            box on
-            
+
             if Rsq_pre_con > Rsq_thresh && n_pre>5
                 %             hold off
                 plot(dat(ii).preTime-dat(ii).param.t_cpd, dat(ii).preDiam, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre'], 'linew', 1)
@@ -241,8 +254,7 @@ if plot_teff
         
         ylabel('t_{eff} (min)')
     end
-    
-    ylabel('t_{eff} (min)')
+
 end
 
 if plot_d_vs_alph

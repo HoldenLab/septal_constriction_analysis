@@ -1,5 +1,4 @@
 function [FWHM, intensity, widthResult, Rsq, se] = fitProfile_public(im, width, plotpos_y, param)
-%function [FWHM, intensity, widthResult;] = fitProfile(im,width,plotpos_y)
 
 if nargin<4
     param.plot_gauss = 0;

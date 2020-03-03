@@ -4,7 +4,7 @@
 % This function fits an image of a bacterial septum to an explicit model
 % using a minimization routine.
 
-function [improf, orthprof, fitvals, fitvals_ax] = fit_septum_explicit_1D(imstack, plot_im, param)
+function [improf, orthprof, fitvals, fitvals_ax] = fit_septum_explicit_1D_imrot(imstack, plot_im, param)
 
 plot_gauss = param.plot_gauss;
 plot_explicit = param.plot_explicit;
@@ -13,6 +13,8 @@ blobedge = 520; % [nm] for cutting out assuming a square. This value seems to wo
 blobarea_pix = blobedge^2 / param.pixSz^2; % [pix^2]
 
 r0 = 2000 / 2 / param.pixSz; % [pix] half of line length for profile. updated 200217
+ybox = floor(325 / 2 / param.pixSz); % [pix] width of septum for line profile
+xbox = floor(1000 / 2 / param.pixSz); % [pix] width of septum for axial line profile. also the name of a popular game console.
 
 if plot_im
     figure
@@ -105,12 +107,21 @@ for ii = 1:size(imstack,3)
     end
     
     %% Get intensity profile across septum
-
-    % endpoints for line going through septal axis
-    x0 = [xy0(1)+r0*cos(theta) xy0(1)-r0*cos(theta)];
-    y0 = [xy0(2)+r0*sin(theta) xy0(2)-r0*sin(theta)];
     
-    ip = improfile(frame, x0, y0)';
+    % rotate image by theta (x = septal axis, y = cell axis)
+    rotim = imrotate(frame, theta*180/pi);
+    
+    Rz = rotz(-theta*180/pi); % don't know why it needs to be -theta, but it does
+    vec1 = [xy0(1)-(size(frame,1)+1)/2; xy0(2)-(size(frame,2)+1)/2; 0]; % vector from center of septum to center of image
+    vec1rot = Rz*vec1; % rotated vector
+    xy0r = [vec1rot(1)+(size(rotim,1)+1)/2; vec1rot(2)+(size(rotim,2)+1)/2; 0]; % new center of septum (image rotated, size changed)
+    xy0r = round(xy0r); % image is discrete pixels - need integer values
+
+    yrange = max([1 xy0r(2)-ybox]):min([size(rotim,1) xy0r(2)+ybox]);
+    sepim = rotim(yrange, :); % crop - only image of septum +/- a few pixels
+    sepim(sepim==0) = NaN; % zeros are from rotation, and are artificial
+    
+    ip = nanmean(sepim,1);
     
     % pad ip or improf with NaNs if necessary
     if ~isempty(improf) && length(ip)>length(improf(end,:))
@@ -129,43 +140,11 @@ for ii = 1:size(imstack,3)
     
     %% Get intensity profile orthogonal to septum
     
-    % rotation matrix about z axis
-    Rz = rotz(theta*180/pi);
-    xy_minv = [min(x0); y0(2); 0]; % starting xy position as 3D vector
+    xrange = max([1 xy0r(1)-xbox]):min([size(rotim,2) xy0r(1)+xbox]);
+    axim = rotim(:, xrange); % crop - only image of septum +/- a few pixels
+    axim(axim==0) = NaN; % zeros are from rotation, and are artificial
     
-    orth_space = 0.1; % spacing for each orthogonal line (measured along septal axis)
-    ustep = [orth_space; 0; 0]; % unit step size along septal axis
-    
-    ip_orth = [];
-    for jj = 1:r0/orth_space*2
-        
-        % new 'central' coordinates from rotation matrix (sliding along
-        % septal axis)
-        new_xy0 = xy_minv + Rz*(ustep.*jj);
-        
-        new_x0 = new_xy0(1);
-        new_y0 = new_xy0(2);
-        
-        % endpoints for line parallel to cell axis
-        x_orth = [new_x0-r0*sin(theta) new_x0+r0*sin(theta)];
-        y_orth = [new_y0+r0*cos(theta) new_y0-r0*cos(theta)];
-
-        % line profile along cell axis with shifted 'central' coordinates
-        ip_orth(jj,:) = improfile(frame, x_orth, y_orth)';
-
-        if plot_im && 0 % for debugging
-            hold(h_im, 'on')
-            slp_o1 = (y_orth(2)-y_orth(1)) / (x_orth(2)-x_orth(1));
-            yint_o1 = y_orth(2) - (slp_o1*x_orth(2));
-            tv_o1 = min([x_orth(1) x_orth(2)]):max([x_orth(1) x_orth(2)]);
-            plot(h_im, tv_o1, tv_o1*slp_o1+yint_o1, 'r', 'linew', 3)
-            
-            plot(h_im, new_xy0(1), new_xy0(2), 'ow');
-        end
-        if plot_gauss && 0
-            plot(h_gauss, ip_orth(jj,:))
-        end
-    end
+    ip_orth = nanmean(axim,2)';
     
     % pad ip_orth or orthprof with NaNs if necessary
     if ~isempty(orthprof) && size(ip_orth,2)>size(orthprof,2)
@@ -180,9 +159,7 @@ for ii = 1:size(imstack,3)
         orthprof = ones(ii-1,size(ip_orth,2))*NaN;
     end
     
-%     ip_orth(:,any(isnan(ip_orth))) = NaN; % if any nans are present, sum will not be accurate.
-    orthprof(ii,:) = nanmean(ip_orth,1)*orth_space; % sum will be inaccurate due to all the nans present. need to normalize by number of actual data points.
-%     orthprof(ii,:) = nansum(ip_orth,1)*orth_space; % integral rather than sum. will not give accurate intensity measurement!
+    orthprof(ii,:) = ip_orth;
 
     %% Fit septal intensity line profile to explicit 'tilted circle' model
     
@@ -206,7 +183,6 @@ for ii = 1:size(imstack,3)
     end
     initguess = [length(imp)/2+1 initwidth];
     options = optimset('Display', 'off');
-%     range = 1:length(imp);
     range = 1:0.1:length(imp);
     [fitex, fval] = fminsearch(@(x)septum_1D_obj(imp_proc,x,range,param), initguess, options);
     
@@ -236,27 +212,17 @@ for ii = 1:size(imstack,3)
             hold(h_gauss, 'on')
         end
         
-%         superGaussian = @(a,x)  a(1) + a(2)*exp(-((x-a(3)).^2 / (2*a(4)^2)).^ a(5));
-%         superGaussian = @(a,x)  a(1)*exp(-((x-a(2)).^2 / (2*a(3)^2)).^ a(4));
         superGaussian = @(a,x)  exp(-((x-a(1)).^2 / (2*a(2)^2)).^ a(3));
         initwidth = 5;
-%         initguess = [min(linep_ax_proc), max(linep_ax_proc), mean(x), initwidth, 1];
-%         initguess = [max(linep_ax_proc), mean(x), initwidth, 1];
         initguess = [mean(x), initwidth, 1];
         options = optimoptions('lsqcurvefit', 'Display', 'off');
-        lb = [0 0 0 0 0.5];
+        lb = [0 0 0.5];
         [a, rn, res, ~, ~, ~, J] = lsqcurvefit(superGaussian, initguess, x, linep_ax_proc, lb, [], options);
         sst = sum((linep_ax_proc - mean(linep_ax_proc)).^2);
         Rsq = 1 - rn/sst;
         
         [~, se_ax] = nlparci2(a, real(res), 'Jacobian', real(J));
-        
-%         xC = a(3);
-%         par_d = a(4);
-%         par_e = a(5);
-%         xC = a(2);
-%         par_d = a(3);
-%         par_e = a(4);
+
         xC = a(1);
         par_d = a(2);
         par_e = a(3);
@@ -264,18 +230,15 @@ for ii = 1:size(imstack,3)
         x0ax = xC - FWHM_ax/2;
         x1 = xC + FWHM_ax/2;
         widthResult = [xC, x0ax, x1];
-        % intensity = max(linep_ax);
         intensity = sum(linep_ax_proc);
         
         if param.plot_gauss
             tv = x(1):(x(2)-x(1))/10:x(end);
             plot(h_gauss, tv, superGaussian(a,tv))
         end
-        
-        %         [FWHM_ax, ~, ~, Rsq(ii), se_ax] = fitProfile_public(linep_ax,[],1, param); % axial FWHM
+
     end
     
-%     fitvals_ax(ii,:) = [FWHM_ax se_ax(4)];
     fitvals_ax(ii,:) = [FWHM_ax se_ax(2)];
     
     %% Plot image with septal and axial axes
@@ -283,19 +246,11 @@ for ii = 1:size(imstack,3)
     if plot_im
         hold(h_im, 'on')
         
-        slp = (y0(2)-y0(1)) / (x0(2)-x0(1));
-        yint = y0(2) - (slp*x0(2));
-        
-        tv = min(x0):0.1:max(x0);
-        plot(h_im, tv, tv*slp+yint, 'k', 'linew', 3)
-        
-        x_orth0 = [xy0(1)-r0*sin(theta) xy0(1)+r0*sin(theta)]; % for orthogonal axis straight through center of septum
-        y_orth0 = [xy0(2)+r0*cos(theta) xy0(2)-r0*cos(theta)];
-        
-        slp_o = (y_orth0(2)-y_orth0(1)) / (x_orth0(2)-x_orth0(1));
-        yint_o = y_orth0(2) - (slp_o*x_orth0(2));
-        
-        tv_o = min(x_orth0):0.1:max(x_orth0);
-        plot(h_im, tv_o, tv_o*slp_o+yint_o, 'r', 'linew', 3)
+        hold(h_im, 'on')
+        xs = xy0r(1)-r0:0.1:xy0r(1)+r0;
+        plot(h_im, xs, ones(1,length(xs))*xy0r(2), 'k', 'linew', 2)
+        ys = xy0r(2)-r0:0.1:xy0r(2)+r0;
+        plot(h_im, ones(1,length(ys))*xy0r(1), ys, 'r', 'linew', 2)
+
     end
 end

@@ -34,4 +34,4 @@ end
 
 options = optimoptions('lsqcurvefit','Display','off');   
 [fits, rn, res, ~, ~, ~, J] = lsqcurvefit(fcn, b0, tdat, ydat, lb, ub, options);
-[~, se] = nlparci2(fits, real(res), 'Jacobian', real(J));
+% [~, se] = nlparci2(fits, real(res), 'Jacobian', real(J));
