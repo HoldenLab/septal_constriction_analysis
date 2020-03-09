@@ -8,11 +8,11 @@ fit_dat = 1;
 
 plot_raw_dat = 0;
 plot_fit_dat = 1;
-plot_teff =  1;
+plot_teff =  0;
 plot_d_vs_alph = 0;
 plot_perturbed = 0;
-plot_intensity = 0;
-plot_width_axial = 0;
+plot_intensity = 1;
+plot_width_axial = 1;
 plot_d0 = 0;
 
 model = 'parabolic';
@@ -35,6 +35,7 @@ for ii = 1:length(alldat2)
     end
 end
 
+%plot all the tracks
 if plot_raw_dat
     figure('FileName', [path '/' today '_raw_dat.fig'])
     hold on
@@ -52,6 +53,7 @@ if plot_raw_dat
     title('Raw data')
 end
 
+%fit the constriction rates/ parabolic model
 if fit_dat
     
     if plot_fit_dat
@@ -198,10 +200,16 @@ if fit_dat
 
             if Rsq_pre_con > Rsq_thresh && n_pre>5
                 %             hold off
-                plot(dat(ii).preTime-dat(ii).param.t_cpd, dat(ii).preDiam, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre'], 'linew', 1)
+%                 plot(dat(ii).preTime-dat(ii).param.t_cpd, dat(ii).preDiam, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre'], 'linew', 1)
+                plot(dat(ii).preTime-cfit_pre(1), dat(ii).preDiam, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre'], 'linew', 1)
+
                 %             hold on
+                %THIS IS WHERE THE FIT FUNCTION DATA IS CALCULATED FOR
+                %PLOTTING
                 tvf = dat(ii).preTime(1):0.1:dat(ii).preTime(end);
-                plot(tvf-dat(ii).param.t_cpd, fcn(cfit_pre,tvf), 'k', 'DisplayName', '')
+%                 plot(tvf-dat(ii).param.t_cpd, fcn(cfit_pre,tvf), 'k', 'DisplayName', '')
+                plot(tvf-cfit_pre(1), fcn(cfit_pre,tvf), 'k', 'DisplayName', '')
+
                 %             teff = cfit_pre(3)^2 ./ cfit_pre(2);
                 teff = d0^2 ./ cfit_pre(2);
             end
@@ -313,10 +321,10 @@ if plot_intensity
     box on
     
     for ii = 1:length(dat)
-        if any(dat(ii).cuttime<dat(ii).param.t_cpd) && any(dat(ii).cuttime>dat(ii).param.t_cpd)
+%         if any(dat(ii).cuttime<dat(ii).param.t_cpd) && any(dat(ii).cuttime>dat(ii).param.t_cpd)
             plot(dat(ii).cuttime, dat(ii).cutint, ...
                 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num)])
-        end
+%         end
     end
 end
 

@@ -45,7 +45,7 @@ if param.plot_raw
 end
 
 for ii = tracknums
-    
+    %DOES THE FITTING
     %% Load image stack and pull out individual septa
     
     display(num2str(ii))
@@ -125,6 +125,18 @@ for ii = tracknums
 %         end
 %     end
 
+    %DOES THE FILTERING
+    %start with vars
+    %time, intensity,se_ax,fiterrs (radial SE), diams (radial width),
+    %FWHM_ax (axial width)
+    %ud.rawDat(ii).cuttime = tCrop_rad;
+    %make a struct array ud.datUnfilt
+    ud.datUnfilt(ii).time = time;
+    ud.datUnfilt(ii).intensity= intensity;
+    ud.datUnfilt(ii).se_ax = se_ax;
+    ud.datUnfilt(ii).fiterrs = fiterrs;
+    ud.datUnfilt(ii).diam= diams;
+    ud.datUnfilt(ii).FWHM_ax= FWHM_ax;
     %% Cut results
 
     MAXDIAM = 1400;
@@ -134,27 +146,36 @@ for ii = tracknums
     t_rad = time;
     int_ax = intensity;
     int_rad = intensity;
+    %indepently each axis filters out too wide, too narrow
     badIdx_ax = FWHM_ax<MINDIAM | isnan(FWHM_ax);
     badIdx_rad = diams<MINDIAM | diams>MAXDIAM | isnan(diams);
-    FWHM_ax(badIdx_ax) = [];
-    t_ax(badIdx_ax) = [];
-    se_ax(badIdx_ax) = [];
-    int_ax(badIdx_ax) = [];
+%     FWHM_ax(badIdx_ax) = [];
+%     t_ax(badIdx_ax) = [];
+%     se_ax(badIdx_ax) = [];
+%     int_ax(badIdx_ax) = [];
+    FWHM_ax(badIdx_rad) = [];
+    t_ax(badIdx_rad) = [];
+    se_ax(badIdx_rad) = [];
+    int_ax(badIdx_rad) = [];
     diams(badIdx_rad) = [];
     t_rad(badIdx_rad) = [];
     int_rad(badIdx_rad) = [];
     fiterrs(badIdx_rad) = [];
 
+    %independently each axis filters out too big fitting error
 %     badIdx3_ax = se_ax(4,:) > 2;
     badIdx3_ax = se_ax > 0.5;
-    FWHM_ax(badIdx3_ax) = [];
-    t_ax(badIdx3_ax) = [];
-    int_ax(badIdx3_ax) = [];
+%     FWHM_ax(badIdx3_ax) = [];
+%     t_ax(badIdx3_ax) = [];
+%     int_ax(badIdx3_ax) = [];
     badIdx3_rad = fiterrs > 1.1;
 %     badIdx3_rad = fiterrs > 0.5;
     diams(badIdx3_rad) = [];
     t_rad(badIdx3_rad) = [];
     int_rad(badIdx3_rad) = [];
+    FWHM_ax(badIdx3_rad) = [];
+    t_ax(badIdx3_rad) = [];
+    int_ax(badIdx3_rad) = [];
     
     ud.rawDat(ii).num = ii;
     ud.rawDat(ii).width = diams;
