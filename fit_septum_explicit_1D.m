@@ -297,5 +297,7 @@ for ii = 1:size(imstack,3)
         
         tv_o = min(x_orth0):0.1:max(x_orth0);
         plot(h_im, tv_o, tv_o*slp_o+yint_o, 'r', 'linew', 3)
+        
+        pause
     end
 end

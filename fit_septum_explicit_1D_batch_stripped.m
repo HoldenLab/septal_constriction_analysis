@@ -29,9 +29,10 @@ if param.plot_raw
         fname = [param.path '/' param.analysis_date '_' fname_base '_const_raw.fig'];
     else % NS elements format
         fname_base = extractBefore(param.im_file, '.nd2 -');
+        fovstr = extractAfter(param.im_file, '.nd2 (series ');
+        fovnum = fovstr(1:2);
         fname_end = param.im_file(end-6:end);
-        fname = [param.path '/' param.analysis_date '_' fname_base '_pos' fname_end '_const_raw.fig'];
-%         fname = [param.path '/' param.analysis_date '_.fig'];
+        fname = [param.path '/' param.analysis_date '_' fname_base '_pos' fovnum '_const_raw.fig'];
     end
     
     gr = figure('FileName', fname, 'Position', [100 100 500 400]);

@@ -111,16 +111,19 @@ for ii = 1:size(imstack,3)
     % rotate image by theta (x = septal axis, y = cell axis)
     rotim = imrotate(frame, theta*180/pi);
     
+    % find new center of septum (moves after imrotate operation)
     Rz = rotz(-theta*180/pi); % don't know why it needs to be -theta, but it does
     vec1 = [xy0(1)-(size(frame,1)+1)/2; xy0(2)-(size(frame,2)+1)/2; 0]; % vector from center of septum to center of image
     vec1rot = Rz*vec1; % rotated vector
     xy0r = [vec1rot(1)+(size(rotim,1)+1)/2; vec1rot(2)+(size(rotim,2)+1)/2; 0]; % new center of septum (image rotated, size changed)
     xy0r = round(xy0r); % image is discrete pixels - need integer values
 
+    % crop image to a thin rectangle along septal axis
     yrange = max([1 xy0r(2)-ybox]):min([size(rotim,1) xy0r(2)+ybox]);
     sepim = rotim(yrange, :); % crop - only image of septum +/- a few pixels
     sepim(sepim==0) = NaN; % zeros are from rotation, and are artificial
     
+    % take average of all line profiles across septal axis
     ip = nanmean(sepim,1);
     
     % pad ip or improf with NaNs if necessary
