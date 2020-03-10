@@ -19,6 +19,8 @@ xbox = floor(1000 / 2 / param.pixSz); % [pix] width of septum for axial line pro
 if plot_im
     figure
     h_im = gca;
+    hIm0=figure;
+    hIm1=figure;
 end
 if param.plot_gauss
     figure
@@ -49,7 +51,7 @@ for ii = 1:size(imstack,3)
     seg_f = imquantize(frame, thr);
     
     bwframe = seg_f > length(thr); % top level
-    
+
     % if bwframe only has one object, drop down one level and try again
     % (helps with asymmetric nascent septa). Seems mostly to help with
     % 2B-mNG strain, not so much with Z-GFP strain.
@@ -101,7 +103,7 @@ for ii = 1:size(imstack,3)
         fitvals(ii,:) = [NaN NaN NaN];
         fitvals_ax(ii,:) = [NaN NaN];
         continue
-    end
+    end 
     
     %% Get intensity profile across septum
     
@@ -255,6 +257,10 @@ for ii = 1:size(imstack,3)
         plot(h_im, xs, ones(1,length(xs))*xy0r(2), 'k', 'linew', 2)
         ys = xy0r(2)-r0:0.1:xy0r(2)+r0;
         plot(h_im, ones(1,length(ys))*xy0r(1), ys, 'r', 'linew', 2)
+        figure(hIm0);
+        imagesc(frame);
+        figure(hIm1);
+        imagesc(seg_f);
         ii
         pause
     end
