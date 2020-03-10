@@ -36,12 +36,17 @@ if param.plot_raw
     
     gr = figure('FileName', fname, 'Position', [100 100 500 400]);
 %     gr = figure('FileName', [param.path '/' param.analysis_date]);
-    hh = gca;
+    hh = gcf;
     hold on
     box on
+    subplot(3,1,1);
     title(['Raw constriction traces for ' strrep(param.im_file,'_','\_')])
-    xlabel(hh,'Time (min)')
-    ylabel(hh,'Septum width (nm)')
+    ylabel('Septum width (nm)')
+    subplot(3,1,2);
+    ylabel('Axial width (nm)')
+    subplot(3,1,3);
+    ylabel('Intensity')
+    xlabel('Time (min)')
 end
 
 for ii = tracknums
@@ -239,7 +244,14 @@ for ii = tracknums
     ud.rawDat(ii).cutdiams_ax = fCrop_ax;
 
     if param.plot_raw
-        plot(hh, tCrop_rad, dCrop, 'DisplayName', num2str(ii))
+        figure(hh);
+        subplot(3,1,1);
+        plot(tCrop_rad, dCrop)
+        subplot(3,1,2);
+        plot(ud.rawDat(ii).time,ud.rawDat(ii).width_ax)
+        subplot(3,1,3);
+        plot(ud.rawDat(ii).time,ud.rawDat(ii).intensity)
+
     end
 
 end

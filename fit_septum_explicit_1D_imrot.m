@@ -27,6 +27,7 @@ end
 if plot_explicit
     figure('Position',[100 600 500 400])
     h_exp = gca;
+    hRawInt = figure;
 end
 
 improf=[]; orthprof=[]; fitvals=[]; fitvals_ax=[];
@@ -34,10 +35,6 @@ for ii = 1:size(imstack,3)
     
     frame = imstack(:,:,ii);
     
-    if plot_im
-        hold(h_im, 'off')
-        imagesc(h_im, frame)
-    end
     if param.plot_gauss
         hold(h_gauss, 'off')
     end
@@ -110,6 +107,10 @@ for ii = 1:size(imstack,3)
     
     % rotate image by theta (x = septal axis, y = cell axis)
     rotim = imrotate(frame, theta*180/pi);
+    if plot_im
+        hold(h_im, 'off')
+        imagesc(h_im, rotim)
+    end
     
     Rz = rotz(-theta*180/pi); % don't know why it needs to be -theta, but it does
     vec1 = [xy0(1)-(size(frame,1)+1)/2; xy0(2)-(size(frame,2)+1)/2; 0]; % vector from center of septum to center of image
@@ -193,6 +194,9 @@ for ii = 1:size(imstack,3)
         plot(h_exp, imp_proc)
         hold(h_exp, 'on')
         plot(h_exp, halfrange, septum_model_1D(fitvals(ii,1),fitvals(ii,2),250,65,range))
+        figure(hRawInt);
+        plot(imp);
+        ylabel('raw intensity')
     end
     
     %% Fit orthogonal intensity line profile to generalized (or 'super') Gaussian model
@@ -251,6 +255,7 @@ for ii = 1:size(imstack,3)
         plot(h_im, xs, ones(1,length(xs))*xy0r(2), 'k', 'linew', 2)
         ys = xy0r(2)-r0:0.1:xy0r(2)+r0;
         plot(h_im, ones(1,length(ys))*xy0r(1), ys, 'r', 'linew', 2)
-
+        ii
+        pause
     end
 end
