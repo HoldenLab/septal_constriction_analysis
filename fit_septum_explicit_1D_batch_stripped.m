@@ -110,9 +110,11 @@ for ii = tracknums
         linep = improfs_rad(jj,~isnan(improfs_rad(jj,:)));
         if isempty(linep) || length(linep)<5
             intensity(jj) = NaN;
+            intensityMedian(jj) = NaN;
         else
 %             [~, intensity(jj)] = fitProfile_public(linep,[],1);
             intensity(jj) = sum(linep);
+            intensityMedian(jj) = median(linep);
         end
     end
 %     for kk = 1:size(improfs_ax,1)
@@ -133,6 +135,7 @@ for ii = tracknums
     %make a struct array ud.datUnfilt
     ud.datUnfilt(ii).time = time;
     ud.datUnfilt(ii).intensity= intensity;
+    ud.datUnfilt(ii).intensityMedian= intensityMedian;
     ud.datUnfilt(ii).se_ax = se_ax;
     ud.datUnfilt(ii).fiterrs = fiterrs;
     ud.datUnfilt(ii).diam= diams;
