@@ -11,10 +11,10 @@
 
 param.ZGFP = 1; % are these images ZGFP strain? changes some image processing. 
 %CURRENTLY ZGFP uses the olay image
-param.plot_im = 0; % plot septum images with fitted diameter
-param.plot_gauss = 0;
-param.plot_explicit = 0;
-param.plot_raw = 0; % plot raw constriction vs. time data
+param.plot_im = 1; % plot septum images with fitted diameter
+param.plot_gauss = 1;
+param.plot_explicit = 1;
+param.plot_raw = 1; % plot raw constriction vs. time data
 param.save_raw = 0;
 param.intensity_cut = 0;
 
@@ -64,7 +64,7 @@ if param.ZGFP
     %    close all
     %    ud = fit_septum_explicit_1D_batch_stripped(fullstack, tracks, param,ii,olaystack);
     %end
-    ud = fit_septum_explicit_1D_batch_stripped(fullstack, tracks, param,[],olaystack);
+    ud = fit_septum_explicit_1D_batch_stripped(fullstack, tracks, param,[20 47],olaystack);
 else
     ud = fit_septum_explicit_1D_batch_stripped(fullstack, tracks, param);
 end
