@@ -192,11 +192,11 @@ for ii = 1:size(imstack,3)
             hold(h_gauss, 'on')
         end
         
-        superGaussian = @(a,x)  exp(-((x-a(1)).^2 / (2*a(2)^2)).^ a(3));
+        superGaussian = @(a,x)  a(4)*exp(-((x-a(1)).^2 / (2*a(2)^2)).^ a(3))+a(5);
         initwidth = 5;
-        initguess = [mean(x), initwidth, 1];
+        initguess = [mean(x), initwidth, 1,1,0];
         options = optimoptions('lsqcurvefit', 'Display', 'off');
-        lb = [0 0 0.5];
+        lb = [0 0 0.5 0 0];
         [a, rn, res, ~, ~, ~, J] = lsqcurvefit(superGaussian, initguess, x, linep_ax_proc, lb, [], options);
         sst = sum((linep_ax_proc - mean(linep_ax_proc)).^2);
         Rsq = 1 - rn/sst;
