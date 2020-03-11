@@ -64,7 +64,7 @@ if param.ZGFP
     %    close all
     %    ud = fit_septum_explicit_1D_batch_stripped(fullstack, tracks, param,ii,olaystack);
     %end
-    ud = fit_septum_explicit_1D_batch_stripped(fullstack, tracks, param,olaystack);
+    ud = fit_septum_explicit_1D_batch_stripped(fullstack, tracks, param,[],olaystack);
 else
     ud = fit_septum_explicit_1D_batch_stripped(fullstack, tracks, param);
 end
