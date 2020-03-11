@@ -9,11 +9,12 @@
 
 %% User-set parameters
 
-param.ZGFP = 0; % are these images ZGFP strain? changes some image processing.
+param.ZGFP = 1; % are these images ZGFP strain? changes some image processing. 
+%CURRENTLY ZGFP uses the olay image
 param.plot_im = 0; % plot septum images with fitted diameter
 param.plot_gauss = 0;
 param.plot_explicit = 0;
-param.plot_raw = 1; % plot raw constriction vs. time data
+param.plot_raw = 0; % plot raw constriction vs. time data
 param.save_raw = 0;
 param.intensity_cut = 0;
 
@@ -36,8 +37,11 @@ param.exclude_frames = []; % frames where focus was lost, etc. need to add NaNs 
 today = datestr(now, 'yymmdd');
 
 path = pwd;
-dirIm = dir([path '\*.tif']);
-dirTr = dir([path '\*.mat']);
+dirIm = dir([path '\200104_1mW-TIRF-30_CDM_1_MMStack_Default.ome_denoise_reg_32bit.tif']);
+if param.ZGFP
+    dirImOlay = dir([path '\200104_1mW-TIRF-30_CDM_1_MMStack_Default.ome_denoise_reg_32bit_Simple Segmentation_.tif']);
+end
+dirTr = dir([path '\Segmented Image Trial analysis.mat']);
 
 param.path = path;
 param.analysis_date = today;
@@ -46,11 +50,22 @@ param.tracks_file = dirTr.name;
 
 fullstack = imreadstack([path '\' dirIm.name]);
 fullstack = im2double(fullstack);
+if param.ZGFP
+    olaystack = imreadstack([path '\' dirImOlay.name]);
+    olaystack = im2double(olaystack);
+end
 
 tracks = load([path '\' dirTr.name]);
 param.ntracks = length(tracks.Experiment.Lineage);
-
 %% Run function
 
-ud = fit_septum_explicit_1D_batch_stripped(fullstack, tracks, param);
+if param.ZGFP
+    %for ii =1:199
+    %    close all
+    %    ud = fit_septum_explicit_1D_batch_stripped(fullstack, tracks, param,ii,olaystack);
+    %end
+    ud = fit_septum_explicit_1D_batch_stripped(fullstack, tracks, param,olaystack);
+else
+    ud = fit_septum_explicit_1D_batch_stripped(fullstack, tracks, param);
+end
 

@@ -13,10 +13,13 @@
 % 3. fit_constriction_data fits the septum diameter vs. time to a model of
 % the user's choice.
 
-function ud = fit_septum_explicit_1D_batch_stripped(fullstack, tracks, param, tracknums)
+function ud = fit_septum_explicit_1D_batch_stripped(fullstack, tracks, param, tracknums,olaystack)
 
-if nargin < 4
+if nargin < 4 || isempty(tracknums)
     tracknums = 1:param.ntracks;
+end
+if ~exist('olaystack','var')
+    olaystack=[];
 end
 
 if param.plot_raw
@@ -61,13 +64,15 @@ for ii = tracknums
         disp('microbeJ recorded division event. removing.')
         continue
     else
-        [stack, centx, centy, imframes] = separate_microbej_tracks(fullstack, tracks, ii, param.s_box, param.n_frames_before);
+        [stack, centx, centy, imframes,olaystack_cropped,xy0_subim] = separate_microbej_tracks(fullstack, tracks, ii, param.s_box, param.n_frames_before,olaystack);
     end
-    
     %% Obtain line profiles for all frames
-    
 %     [improfs_rad, improfs_ax, fit_rad, fit_ax] = fit_septum_explicit_1D(stack, param.plot_im, param);
-    [improfs_rad, improfs_ax, fit_rad, fit_ax] = fit_septum_explicit_1D_imrot(stack, param.plot_im, param);
+    if ~param.ZGFP
+        [improfs_rad, improfs_ax, fit_rad, fit_ax] = fit_septum_explicit_1D_imrot(stack, param.plot_im, param);
+    else
+        [improfs_rad, improfs_ax, fit_rad, fit_ax] = fit_septum_explicit_1D_ZGFP(stack, param.plot_im, param,xy0_subim,olaystack_cropped);
+    end
 
     avail_frames_before = imframes(1); % how many frames before can we use?
     frames_before = min([param.n_frames_before avail_frames_before]);
