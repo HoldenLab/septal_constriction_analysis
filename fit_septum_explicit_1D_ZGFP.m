@@ -159,7 +159,7 @@ for ii = 1:size(imstack,3)
     else
         initwidth = 3;
     end
-    initguess = [length(imp)/2+1 initwidth];
+    initguess = [length(imp)/2+1 initwidth max(imp_proc) min(imp_proc)];
     options = optimset('Display', 'off');
     range = 1:0.1:length(imp);
     [fitex, fval] = fminsearch(@(x)septum_1D_obj(imp_proc,x,range,param), initguess, options);
@@ -170,12 +170,11 @@ for ii = 1:size(imstack,3)
         halfrange = range - (range(2)-range(1))/2;
         plot(h_exp, imp_proc)
         hold(h_exp, 'on')
-        plot(h_exp, halfrange, septum_model_1D(fitvals(ii,1),fitvals(ii,2),250,65,range))
+        plot(h_exp, halfrange, septum_model_1D(fitvals(ii,1),fitvals(ii,2),250,65,range, fitvals(ii,3), fitvals(ii,4)))
         figure(hRawInt);
         plot(imp);
         ylabel('raw intensity')
     end
-    
     %% Fit orthogonal intensity line profile to generalized (or 'super') Gaussian model
     
     linep_ax = orthprof(ii,~isnan(orthprof(ii,:)));
