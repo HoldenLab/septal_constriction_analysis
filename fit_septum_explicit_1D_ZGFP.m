@@ -62,6 +62,7 @@ theta=brob(1)+brob(2)*t;
 %pause
 %%DEBUG>
 
+superGaussian = @(a,x)  a(4)*exp(-((x-a(1)).^2 / (2*a(2)^2)).^ a(3))+a(5);
 
 improf=[]; orthprof=[]; fitvals=[]; fitvals_ax=[];
 for ii = 1:size(imstack,3)
@@ -159,22 +160,46 @@ for ii = 1:size(imstack,3)
     else
         initwidth = 3;
     end
-    initguess = [length(imp)/2+1 initwidth max(imp_proc) min(imp_proc)];
-    options = optimset('Display', 'off');
-    range = 1:0.1:length(imp);
-    [fitex, fval] = fminsearch(@(x)septum_1D_obj(imp_proc,x,range,param), initguess, options);
-    
-    fitvals(ii,:) = [fitex fval];
+    %initguess = [length(imp)/2+1 initwidth max(imp_proc) min(imp_proc)];
+    %options = optimset('Display', 'off');
+    %range = 1:0.1:length(imp);
+    %[fitex, fval] = fminsearch(@(x)septum_1D_objZ(imp_proc,x,range,param), initguess, options);
+    %
+    %fitvals(ii,:) = [fitex fval];
+    % 
+    % if param.plot_explicit
+    %     halfrange = range - (range(2)-range(1))/2;
+    %     plot(h_exp, imp_proc)
+    %     hold(h_exp, 'on')
+    %     plot(h_exp, halfrange, septum_model_1DZ(fitvals(ii,1),fitvals(ii,2),250,65,range, fitvals(ii,3), fitvals(ii,4)))
+    %     figure(hRawInt);
+    %     plot(imp);
+    %     ylabel('raw intensity')
+    % end
+
+    %alternative supergaussian septal fit
+    h = length(imp_proc);
+    x = 1:h;
+    initguess = [mean(x), initwidth, 1,1,0];
+    options = optimoptions('lsqcurvefit', 'Display', 'off');
+    lb = [0 0 0.5 0 0];
+    [a, rn, res, ~, ~, ~, J] = lsqcurvefit(superGaussian, initguess, x, imp_proc, lb, [], options);
+    [~, se_rad] = nlparci2(a, real(res), 'Jacobian', real(J));
+
+    xC = a(1);
+    par_d = a(2);
+    par_e = a(3);
+    FWHM_rad = 2*sqrt(2)*par_d*(log(2))^(1/(2*par_e));
     
     if param.plot_explicit
-        halfrange = range - (range(2)-range(1))/2;
+        tv = x(1):(x(2)-x(1))/10:x(end);
+        hold(h_exp, 'off')
         plot(h_exp, imp_proc)
         hold(h_exp, 'on')
-        plot(h_exp, halfrange, septum_model_1D(fitvals(ii,1),fitvals(ii,2),250,65,range, fitvals(ii,3), fitvals(ii,4)))
-        figure(hRawInt);
-        plot(imp);
-        ylabel('raw intensity')
+        plot(h_exp, tv, superGaussian(a,tv))
     end
+    fitvals(ii,:) = [FWHM_rad se_rad(2)];
+
     %% Fit orthogonal intensity line profile to generalized (or 'super') Gaussian model
     
     linep_ax = orthprof(ii,~isnan(orthprof(ii,:)));
@@ -192,7 +217,7 @@ for ii = 1:size(imstack,3)
             hold(h_gauss, 'on')
         end
         
-        superGaussian = @(a,x)  a(4)*exp(-((x-a(1)).^2 / (2*a(2)^2)).^ a(3))+a(5);
+       
         initwidth = 5;
         initguess = [mean(x), initwidth, 1,1,0];
         options = optimoptions('lsqcurvefit', 'Display', 'off');
@@ -235,3 +260,83 @@ for ii = 1:size(imstack,3)
         pause
     end
 end
+%-----------------------------------------------------------
+% Author: Kevin Whitley
+% Date created: 200128
+
+% This is an objective function to minimize for fitting
+% horizontally-oriented bacterial septal profiles.
+
+function obj = septum_1D_objZ(prof_im, guess, range, param)
+
+if nargin == 0
+    guess = [10 15 1 0];
+    range = 1:length(prof_im);
+end
+
+mu = guess(1);
+R = guess(2);
+% ring_grad = guess(3);
+amp = guess(3);
+bg = guess(4);
+psfFWHM = param.psfFWHM;
+pixSz = param.pixSz;
+
+prof_model = septum_model_1DZ(mu, R, psfFWHM, pixSz, range,amp,bg);
+
+sp = range(2)-range(1); % spacing
+prof_model = downsample(prof_model, uint8(1/sp)); % same number of points as image profile
+
+diff = prof_im - prof_model;
+
+obj = sum(sum(diff.^2));
+%----------------------------------------------------------------
+% Author: Kevin Whitley
+% Date created: 200128
+
+% This function produces a line profile of a septum using an explicit
+% 'tilted circle' model.
+
+function improf = septum_model_1DZ(X0, R, psfFWHM, pixSz, X,amp,bg)
+
+if nargin==0
+    X0 = 13.1;
+    R = 6; % [pix]
+    ring_grad = 0;
+    psfFWHM = 250;
+    pixSz = 65;
+    sp = .01; % spacing needs to be low enough to prevent problems with discretization (probably <0.5 or so)
+    X = 1:sp:25;
+    amp=10;
+    bg=-5;
+end
+
+sigma = psfFWHM/2.35/pixSz;
+
+x1 = X(1:end-1) - X0;
+x2 = X(2:end) - X0;
+% arcl_i = 2*R * real(asin(x1/R)) + (1:length(x1))*ring_grad; % arc length out to axi
+arcl_i = 2*R * real(asin(x1/R)); % arc length out to axi
+arcl_ip1 = 2*R * real(asin(x2/R)); % arc length out to ax(i+1)
+
+ring_prof = abs(arcl_ip1 - arcl_i); % Delta(arc length)
+
+% ring_prof(abs(x1)>R) = 0;
+
+gpdf_fcn = @(a,x) 1/(a(2)*sqrt(2*pi)) * exp(-(x-a(1)).^2 ./ (2*a(2)^2));
+gauss = gpdf_fcn([0 sigma], x1);
+
+ring_prof = conv(ring_prof, gauss); % convolve with Gaussian psf
+ring_prof = ring_prof(floor(length(gauss)/2):floor((end-length(gauss)/2))+1); % cut ends (convolution increases length of vector)
+
+ring_prof_scale = ring_prof/max(ring_prof(:));
+
+improf = ring_prof_scale*amp+bg;
+
+if nargin==0
+    figure
+    hold on
+    halfX = X - (X(2)-X(1))/2;
+    plot(halfX, improf)
+end
+
