@@ -216,18 +216,7 @@ for ii = tracknums
     ud.rawDat(ii).cutdiams_ax = fCrop_ax;
 
     if param.plot_raw
-<<<<<<< Updated upstream
         plot(hh, tCrop_rad, dCrop, 'DisplayName', num2str(ii))
-=======
-%         figure(hh);
-        subplot(3,1,1);
-        plot(tCrop_rad, dCrop)
-        subplot(3,1,2);
-        plot(ud.rawDat(ii).time,ud.rawDat(ii).width_ax)
-        subplot(3,1,3);
-        plot(ud.rawDat(ii).time,ud.rawDat(ii).intensity)
-
->>>>>>> Stashed changes
     end
 
 end

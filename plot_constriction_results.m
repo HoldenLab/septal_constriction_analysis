@@ -8,7 +8,7 @@ fit_dat = 1;
 
 plot_raw_dat = 0;
 plot_fit_dat = 1;
-plot_teff =  1;
+plot_teff =  0;
 plot_d_vs_alph = 0;
 plot_perturbed = 0;
 plot_intensity = 0;
