@@ -105,13 +105,8 @@ for ii = tracknums
         end
     end
     
-    if param.ZGFP
-        diams = fit_rad(:,1)*param.pixSz;
-        fiterrs = fit_rad(:,2); % should probably be *2*param.pixSz
-    else
-        diams = abs(fit_rad(:,2)) *2*param.pixSz;
-        fiterrs = fit_rad(:,3); % should probably be *2*param.pixSz
-    end
+    diams = abs(fit_rad(:,2)) *2*param.pixSz;
+    fiterrs = fit_rad(:,3); % should probably be *2*param.pixSz
     
     FWHM_ax = fit_ax(:,1) *param.pixSz;
     se_ax = fit_ax(:,2); % should probably be *2*param.pixSz

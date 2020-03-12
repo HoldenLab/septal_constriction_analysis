@@ -160,45 +160,45 @@ for ii = 1:size(imstack,3)
     else
         initwidth = 3;
     end
-    %initguess = [length(imp)/2+1 initwidth max(imp_proc) min(imp_proc)];
-    %options = optimset('Display', 'off');
-    %range = 1:0.1:length(imp);
-    %[fitex, fval] = fminsearch(@(x)septum_1D_objZ(imp_proc,x,range,param), initguess, options);
-    %
-    %fitvals(ii,:) = [fitex fval];
-    % 
-    % if param.plot_explicit
-    %     halfrange = range - (range(2)-range(1))/2;
-    %     plot(h_exp, imp_proc)
-    %     hold(h_exp, 'on')
-    %     plot(h_exp, halfrange, septum_model_1DZ(fitvals(ii,1),fitvals(ii,2),250,65,range, fitvals(ii,3), fitvals(ii,4)))
-    %     figure(hRawInt);
-    %     plot(imp);
-    %     ylabel('raw intensity')
-    % end
-
-    %alternative supergaussian septal fit
-    h = length(imp_proc);
-    x = 1:h;
-    initguess = [mean(x), initwidth, 1,1,0];
-    options = optimoptions('lsqcurvefit', 'Display', 'off');
-    lb = [0 0 0.5 0 0];
-    [a, rn, res, ~, ~, ~, J] = lsqcurvefit(superGaussian, initguess, x, imp_proc, lb, [], options);
-    [~, se_rad] = nlparci2(a, real(res), 'Jacobian', real(J));
-
-    xC = a(1);
-    par_d = a(2);
-    par_e = a(3);
-    FWHM_rad = 2*sqrt(2)*par_d*(log(2))^(1/(2*par_e));
+    initguess = [length(imp)/2+1 initwidth max(imp_proc)];
+    options = optimset('Display', 'off');
+    range = 1:0.1:length(imp);
+    [fitex, fval] = fminsearch(@(x)septum_1D_objZ(imp_proc,x,range,param), initguess, options);
     
-    if param.plot_explicit
-        tv = x(1):(x(2)-x(1))/10:x(end);
-        hold(h_exp, 'off')
-        plot(h_exp, imp_proc)
-        hold(h_exp, 'on')
-        plot(h_exp, tv, superGaussian(a,tv))
-    end
-    fitvals(ii,:) = [FWHM_rad se_rad(2)];
+    fitvals(ii,:) = [fitex fval];
+     
+     if param.plot_explicit
+         halfrange = range - (range(2)-range(1))/2;
+         plot(h_exp, imp_proc)
+         hold(h_exp, 'on')
+         plot(h_exp, halfrange, septum_model_1DZ(fitvals(ii,1),fitvals(ii,2),250,65,range, fitvals(ii,3), fitvals(ii,4)))
+         figure(hRawInt);
+         plot(imp);
+         ylabel('raw intensity')
+     end
+
+    %%alternative supergaussian septal fit
+    %h = length(imp_proc);
+    %x = 1:h;
+    %initguess = [mean(x), initwidth, 1,1,0];
+    %options = optimoptions('lsqcurvefit', 'Display', 'off');
+    %lb = [0 0 0.5 0 0];
+    %[a, rn, res, ~, ~, ~, J] = lsqcurvefit(superGaussian, initguess, x, imp_proc, lb, [], options);
+    %[~, se_rad] = nlparci2(a, real(res), 'Jacobian', real(J));
+
+    %xC = a(1);
+    %par_d = a(2);
+    %par_e = a(3);
+    %FWHM_rad = 2*sqrt(2)*par_d*(log(2))^(1/(2*par_e));
+    %
+    %if param.plot_explicit
+    %    tv = x(1):(x(2)-x(1))/10:x(end);
+    %    hold(h_exp, 'off')
+    %    plot(h_exp, imp_proc)
+    %    hold(h_exp, 'on')
+    %    plot(h_exp, tv, superGaussian(a,tv))
+    %end
+    %fitvals(ii,:) = [FWHM_rad se_rad(2)];
 
     %% Fit orthogonal intensity line profile to generalized (or 'super') Gaussian model
     
@@ -278,11 +278,10 @@ mu = guess(1);
 R = guess(2);
 % ring_grad = guess(3);
 amp = guess(3);
-bg = guess(4);
 psfFWHM = param.psfFWHM;
 pixSz = param.pixSz;
 
-prof_model = septum_model_1DZ(mu, R, psfFWHM, pixSz, range,amp,bg);
+prof_model = septum_model_1DZ(mu, R, psfFWHM, pixSz, range,amp);
 
 sp = range(2)-range(1); % spacing
 prof_model = downsample(prof_model, uint8(1/sp)); % same number of points as image profile
@@ -297,7 +296,7 @@ obj = sum(sum(diff.^2));
 % This function produces a line profile of a septum using an explicit
 % 'tilted circle' model.
 
-function improf = septum_model_1DZ(X0, R, psfFWHM, pixSz, X,amp,bg)
+function improf = septum_model_1DZ(X0, R, psfFWHM, pixSz, X,amp)
 
 if nargin==0
     X0 = 13.1;
@@ -308,7 +307,6 @@ if nargin==0
     sp = .01; % spacing needs to be low enough to prevent problems with discretization (probably <0.5 or so)
     X = 1:sp:25;
     amp=10;
-    bg=-5;
 end
 
 sigma = psfFWHM/2.35/pixSz;
@@ -331,7 +329,7 @@ ring_prof = ring_prof(floor(length(gauss)/2):floor((end-length(gauss)/2))+1); % 
 
 ring_prof_scale = ring_prof/max(ring_prof(:));
 
-improf = ring_prof_scale*amp+bg;
+improf = ring_prof_scale*amp;
 
 if nargin==0
     figure
