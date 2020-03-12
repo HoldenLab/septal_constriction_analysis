@@ -15,7 +15,7 @@ blobarea_pix = blobedge^2 / param.pixSz^2; % [pix^2]
 %r0 = 2000 / 2 / param.pixSz; % [pix] half of line length for profile. updated 200217
 r0r = floor(1500 / 2 / param.pixSz); % [pix] half of line length for profile.
 r0ax = floor(1500 / 2 / param.pixSz); % [pix] half of line length for profile.
-ybox = floor(600 / 2 / param.pixSz); % [pix] width of septum for line profile
+ybox = floor(500 / 2 / param.pixSz); % [pix] width of septum for line profile
 xbox = floor(1000 / 2 / param.pixSz); % [pix] width of septum for axial line profile. also the name of a popular game console.
 
 if plot_im
@@ -171,7 +171,7 @@ for ii = 1:size(imstack,3)
          halfrange = range - (range(2)-range(1))/2;
          plot(h_exp, imp_proc)
          hold(h_exp, 'on')
-         plot(h_exp, halfrange, septum_model_1DZ(fitvals(ii,1),fitvals(ii,2),250,65,range, fitvals(ii,3), fitvals(ii,4)))
+         plot(h_exp, halfrange, septum_model_1DZ(fitvals(ii,1),fitvals(ii,2),250,65,range, fitvals(ii,3)));
          figure(hRawInt);
          plot(imp);
          ylabel('raw intensity')
