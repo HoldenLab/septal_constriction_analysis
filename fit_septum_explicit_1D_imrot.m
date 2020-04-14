@@ -6,9 +6,6 @@
 
 function [improf, orthprof, fitvals, fitvals_ax] = fit_septum_explicit_1D_imrot(imstack, plot_im, param)
 
-plot_gauss = param.plot_gauss;
-plot_explicit = param.plot_explicit;
-
 blobedge = 520; % [nm] for cutting out assuming a square. This value seems to work well. Updated 200217
 blobarea_pix = blobedge^2 / param.pixSz^2; % [pix^2]
 
@@ -24,7 +21,7 @@ if param.plot_gauss
     figure
     h_gauss = gca;
 end
-if plot_explicit
+if param.plot_explicit
     figure('Position',[100 600 500 400])
     h_exp = gca;
 end
@@ -41,7 +38,7 @@ for ii = 1:size(imstack,3)
     if param.plot_gauss
         hold(h_gauss, 'off')
     end
-    if plot_explicit
+    if param.plot_explicit
         hold(h_exp, 'off')
     end
     
