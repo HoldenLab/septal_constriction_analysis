@@ -109,7 +109,7 @@ for ii = 1:size(imstack,3)
     %% Get intensity profile across septum
     
     % rotate image by theta (x = septal axis, y = cell axis)
-    rotim = imrotate(frame, theta*180/pi);
+    rotim = imrotate(frame, theta*180/pi, 'bilinear');
     
     % find new center of septum (moves after imrotate operation)
     Rz = rotz(-theta*180/pi); % don't know why it needs to be -theta, but it does
@@ -195,7 +195,7 @@ for ii = 1:size(imstack,3)
         halfrange = range - (range(2)-range(1))/2;
         plot(h_exp, imp_proc)
         hold(h_exp, 'on')
-        plot(h_exp, halfrange, septum_model_1D(fitvals(ii,1),fitvals(ii,2),250,65,range))
+        plot(h_exp, halfrange, septum_model_1D(fitvals(ii,1),fitvals(ii,2),param.psfFWHM,param.pixSz,range))
     end
     
     %% Fit orthogonal intensity line profile to generalized (or 'super') Gaussian model
@@ -247,7 +247,8 @@ for ii = 1:size(imstack,3)
     %% Plot image with septal and axial axes
     
     if plot_im
-        hold(h_im, 'on')
+        hold(h_im, 'off')
+        imagesc(h_im, rotim)
         
         hold(h_im, 'on')
         xs = xy0r(1)-r0:0.1:xy0r(1)+r0;

@@ -7,8 +7,8 @@
 function improf = septum_model_1D(X0, R, psfFWHM, pixSz, X)
 
 if nargin==0
-    X0 = 13.1;
-    R = 6; % [pix]
+    X0 = 19.5335;
+    R = 8.7665; % [pix]
     ring_grad = 0;
     psfFWHM = 250;
     pixSz = 65;
@@ -39,7 +39,7 @@ ring_prof_scale = ring_prof/max(ring_prof(:));
 improf = ring_prof_scale;
 
 if nargin==0
-    figure
+%     figure
     hold on
     halfX = X - (X(2)-X(1))/2;
     plot(halfX, improf)
