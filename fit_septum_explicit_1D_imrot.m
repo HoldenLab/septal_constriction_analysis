@@ -23,8 +23,9 @@ if param.plot_gauss
     figure
     h_gauss = gca;
 end
-if param.plot_explicit
-    figure('Position',[100 600 500 400])
+
+if plot_explicit
+    figure('Position',[100 300 500 400])
     h_exp = gca;
     hRawInt = figure;
 end
