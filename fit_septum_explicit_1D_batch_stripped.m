@@ -37,16 +37,21 @@ if param.plot_raw
     
     gr = figure('FileName', fname, 'Position', [100 100 500 400]);
 %     gr = figure('FileName', [param.path '/' param.analysis_date]);
-    hh = gca;
+    hh = gcf;
+    hr = gca;
     hold on
     box on
+%     subplot(3,1,1);
     title(['Raw constriction traces for ' strrep(param.im_file,'_','\_')])
-    xlabel(hh,'Time (min)')
-    ylabel(hh,'Septum width (nm)')
+    ylabel('Septum width (nm)')
+%     subplot(3,1,2);
+%     ylabel('Axial width (nm)')
+%     subplot(3,1,3);
+%     ylabel('Intensity')
+    xlabel('Time (min)')
 end
 
 for ii = tracknums
-    
     %% Load image stack and pull out individual septa
     
     display(num2str(ii))
@@ -69,7 +74,6 @@ for ii = tracknums
     frames_before = min([param.n_frames_before avail_frames_before]);
     start_frame_new = max([imframes(1) - param.n_frames_before, 1]); % add a few extra frames before
     frames = ([(start_frame_new:start_frame_new+frames_before-1) imframes])'; % removed + 1 200124
-%     frames = ([(start_frame_new:start_frame_new+frames_before-1) imframes] + 1)';
     
     frames = double(frames);
     
@@ -90,16 +94,17 @@ for ii = tracknums
             improfs_rad = [improfs_rad(1:exind(kk)-1,:); ones(1,size(improfs_rad,2))*NaN; improfs_rad(exind(kk):end,:)];
             
             improfs_ax = [improfs_ax(1:exind(kk)-1,:); ones(1,size(improfs_ax,2))*NaN; improfs_ax(exind(kk):end,:)];
-            
+
             fit_rad = [fit_rad(1:exind(kk)-1,:); ones(1,size(fit_rad,2))*NaN; fit_rad(exind(kk):end,:)];
             fit_ax = [fit_ax(1:exind(kk)-1,:); ones(1,size(fit_ax,2))*NaN; fit_ax(exind(kk):end,:)];
         end
     end
     
+    linecents = fit_rad(:,1);
     diams = abs(fit_rad(:,2)) *2*param.pixSz;
     fiterrs = fit_rad(:,3); % should probably be *2*param.pixSz
     
-    FWHM_ax = fit_ax(:,1) *2*param.pixSz;
+    FWHM_ax = fit_ax(:,1) *param.pixSz;
     se_ax = fit_ax(:,2); % should probably be *2*param.pixSz
     
     time = frames * param.interval; % [min]
@@ -111,21 +116,29 @@ for ii = tracknums
         linep = improfs_rad(jj,~isnan(improfs_rad(jj,:)));
         if isempty(linep) || length(linep)<5
             intensity(jj) = NaN;
+            intensityMedian(jj) = NaN;
         else
-%             [~, intensity(jj)] = fitProfile_public(linep,[],1);
             intensity(jj) = sum(linep);
+            intensityMedian(jj) = median(linep);
         end
     end
-%     for kk = 1:size(improfs_ax,1)
-%         linep_ax = improfs_ax(kk,~isnan(improfs_ax(kk,:)));
-%         if isempty(linep_ax) || length(linep_ax)<5
-%             FWHM_ax(kk) = NaN;
-%             se_ax(:,kk) = ones(1,5)*NaN;
-%         else
-%             [FWHM_ax(kk), ~, ~, ~, se_ax(:,kk)] = fitProfile_public(linep_ax,[],1); % axial FWHM
-%         end
-%     end
 
+    % Filter data
+    
+    %start with vars
+    %time, intensity,se_ax,fiterrs (radial SE), diams (radial width),
+    %FWHM_ax (axial width)
+    %ud.rawDat(ii).cuttime = tCrop_rad;
+    %make a struct array ud.datUnfilt
+    ud.datUnfilt(ii).time = time;
+    ud.datUnfilt(ii).intensity= intensity;
+    ud.datUnfilt(ii).intensityMedian= intensityMedian;
+    ud.datUnfilt(ii).se_ax = se_ax;
+    ud.datUnfilt(ii).fiterrs = fiterrs;
+    ud.datUnfilt(ii).linecents = linecents;
+    ud.datUnfilt(ii).diam= diams;
+    ud.datUnfilt(ii).FWHM_ax= FWHM_ax;
+    
     %% Cut results
 
     MAXDIAM = 1400;
@@ -135,30 +148,51 @@ for ii = tracknums
     t_rad = time;
     int_ax = intensity;
     int_rad = intensity;
+    %indepently each axis filters out too wide, too narrow
     badIdx_ax = FWHM_ax<MINDIAM | isnan(FWHM_ax);
     badIdx_rad = diams<MINDIAM | diams>MAXDIAM | isnan(diams);
-    FWHM_ax(badIdx_ax) = [];
-    t_ax(badIdx_ax) = [];
-    se_ax(badIdx_ax) = [];
-    int_ax(badIdx_ax) = [];
+%     FWHM_ax(badIdx_ax) = [];
+%     t_ax(badIdx_ax) = [];
+%     se_ax(badIdx_ax) = [];
+%     int_ax(badIdx_ax) = [];
+    FWHM_ax(badIdx_rad) = [];
+    t_ax(badIdx_rad) = [];
+    se_ax(badIdx_rad) = [];
+    int_ax(badIdx_rad) = [];
     diams(badIdx_rad) = [];
+    linecents(badIdx_rad) = [];
     t_rad(badIdx_rad) = [];
     int_rad(badIdx_rad) = [];
     fiterrs(badIdx_rad) = [];
 
+    %independently each axis filters out too big fitting error
 %     badIdx3_ax = se_ax(4,:) > 2;
     badIdx3_ax = se_ax > 0.5;
-    FWHM_ax(badIdx3_ax) = [];
-    t_ax(badIdx3_ax) = [];
-    int_ax(badIdx3_ax) = [];
+%     FWHM_ax(badIdx3_ax) = [];
+%     t_ax(badIdx3_ax) = [];
+%     int_ax(badIdx3_ax) = [];
     badIdx3_rad = fiterrs > 1.1;
 %     badIdx3_rad = fiterrs > 0.5;
     diams(badIdx3_rad) = [];
+    linecents(badIdx3_rad) = [];
     t_rad(badIdx3_rad) = [];
     int_rad(badIdx3_rad) = [];
+    FWHM_ax(badIdx3_rad) = [];
+    t_ax(badIdx3_rad) = [];
+    int_ax(badIdx3_rad) = [];
+    
+    % filter based on fitted center of line profile - if very off from
+    % center (relative to fitted diameter) it's likely a poor fit even with
+    % low fit error.
+    badIdx4_rad = linecents<diams/param.pixSz*2/3 | size(improfs_rad,2)-linecents<diams/param.pixSz*2/3;
+    diams(badIdx4_rad) = [];
+    linecents(badIdx4_rad) = [];
+    t_rad(badIdx4_rad) = [];
+    int_rad(badIdx4_rad) = [];
     
     ud.rawDat(ii).num = ii;
     ud.rawDat(ii).width = diams;
+    ud.rawDat(ii).linecents = linecents;
     ud.rawDat(ii).time = t_rad;
     ud.rawDat(ii).intensity = int_rad; % added 200120
     ud.rawDat(ii).width_ax = FWHM_ax;
@@ -176,7 +210,8 @@ for ii = tracknums
         iConsEnd_ax = (iMax_ax+iMin_ax)/2;
         tCrop_ax = t_ax(idxMax_ax:end);
         iCrop_ax = int_ax(idxMax_ax:end);
-        iConsEnd_rad = (iMax_rad+iMin_rad)/2;
+%         iConsEnd_rad = (iMax_rad+iMin_rad)/2;
+        iConsEnd_rad = (iMax_rad-iMin_rad)*0.8 + iMin_rad; % 80% of max
         tCrop_rad = t_rad(idxMax_ex:end);
         iCrop_rad = int_rad(idxMax_ex:end);
 
@@ -197,12 +232,14 @@ for ii = tracknums
         end
 
         dCrop = diams(1:tidx_rad);
+        cCrop = linecents(1:tidx_rad);
         iCrop = int_rad(1:tidx_rad);
         tCrop_ax = t_ax(1:tidx_ax);
         fCrop_ax = FWHM_ax(1:tidx_ax);
         tCrop_rad = t_rad(1:tidx_rad);
     else
         dCrop = diams;
+        cCrop = linecents;
         iCrop = int_rad;
         tCrop_ax = t_ax;
         fCrop_ax = FWHM_ax;
@@ -211,12 +248,22 @@ for ii = tracknums
     
     ud.rawDat(ii).cuttime = tCrop_rad;
     ud.rawDat(ii).cutdiams = dCrop;
+    ud.rawDat(ii).cutcents = cCrop;
     ud.rawDat(ii).cutint = iCrop;
     ud.rawDat(ii).cuttime_ax = tCrop_ax;
     ud.rawDat(ii).cutdiams_ax = fCrop_ax;
 
     if param.plot_raw
-        plot(hh, tCrop_rad, dCrop, 'DisplayName', num2str(ii))
+        plot(hr, tCrop_rad, dCrop)
+        
+%         figure(hh);
+%         subplot(3,1,1);
+%         plot(tCrop_rad, dCrop)
+%         subplot(3,1,2);
+%         plot(ud.rawDat(ii).time,ud.rawDat(ii).width_ax)
+%         subplot(3,1,3);
+%         plot(ud.rawDat(ii).time,ud.rawDat(ii).intensity)
+
     end
 
 end

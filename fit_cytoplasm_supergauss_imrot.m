@@ -4,7 +4,7 @@
 % This function fits an image of a bacterial septum to an explicit model
 % using a minimization routine.
 
-function [improf, orthprof, fitvals, fitvals_ax] = fit_septum_explicit_1D_imrot(imstack, plot_im, param)
+function [improf, orthprof, fitvals, fitvals_ax] = fit_cytoplasm_supergauss_imrot(imstack, plot_im, param)
 
 blobedge = 520; % [nm] for cutting out assuming a square. This value seems to work well. Updated 200217
 blobarea_pix = blobedge^2 / param.pixSz^2; % [pix^2]
@@ -45,7 +45,7 @@ for ii = 1:size(imstack,3)
     %% Process image - try to find two blobs
 
     % multilevel thresh
-    thr = multithresh(frame, 3);
+    thr = multithresh(frame, 1);
     seg_f = imquantize(frame, thr);
     
     bwframe = seg_f > length(thr); % top level
@@ -53,17 +53,17 @@ for ii = 1:size(imstack,3)
     % if bwframe only has one object, drop down one level and try again
     % (helps with asymmetric nascent septa). Seems mostly to help with
     % 2B-mNG strain, not so much with Z-GFP strain.
-    if ~isfield(param,'ZGFP') || param.ZGFP == 0
-        cc = bwconncomp(bwframe);
-        if cc.NumObjects < 2
-            bwframe2 = seg_f > length(thr)-1;
-            bwframe = bwframe2;
-        end
-    end
+%     if ~isfield(param,'ZGFP') || param.ZGFP == 0
+%         cc = bwconncomp(bwframe);
+%         if cc.NumObjects < 2
+%             bwframe2 = seg_f > length(thr)-1;
+%             bwframe = bwframe2;
+%         end
+%     end
     
     % remove all but one or two blobs from image
-    BW = bwareafilt(bwframe, 2, 'largest');
-    bwframe(BW==0) = 0;
+%     BW = bwareafilt(bwframe, 2, 'largest');
+%     bwframe(BW==0) = 0;
 
     %% Find septal axis
 
@@ -105,15 +105,8 @@ for ii = 1:size(imstack,3)
     
     %% Get intensity profile across septum
     
-    % rotate image by theta (x = septal axis, y = cell axis). uses
-    % nearest-neighbor interpolation rather than bilinear because black,
-    % cropped edges will be artificially filled in with bilinear
-    % interpolation (fake signal).
-    rotim = imrotate(frame, theta*180/pi);
-    if plot_im
-        hold(h_im, 'off')
-        imagesc(h_im, rotim)
-    end
+    % rotate image by theta (x = septal axis, y = cell axis)
+    rotim = imrotate(frame, theta*180/pi, 'bilinear');
     
     % find new center of septum (moves after imrotate operation)
     Rz = rotz(-theta*180/pi); % don't know why it needs to be -theta, but it does
@@ -192,20 +185,18 @@ for ii = 1:size(imstack,3)
     initguess = [length(imp)/2+1 initwidth];
 %     initguess = [length(imp)/2+1 initwidth max(imp_sub)];
     options = optimset('Display', 'off');
-%     range = 1:0.1:length(imp);
-    range = 0.5:0.1:length(imp)+0.5;
+    range = 1:0.1:length(imp);
 %     [fitex, fval] = fminsearch(@(x)septum_1D_obj_amp(imp_sub,x,range,param), initguess, options);
     [fitex, fval] = fminsearch(@(x)septum_1D_obj(imp_proc,x,range,param), initguess, options);
     
     fitvals(ii,:) = [fitex fval];
     
     if param.plot_explicit
-%         plot(h_exp, range(1):length(imp_proc), imp_proc)
-        plot(h_exp, (range(1):length(imp_proc))-fitex(1), imp_proc)
+        halfrange = range - (range(2)-range(1))/2;
+        plot(h_exp, imp_proc)
         hold(h_exp, 'on')
 
-        plot(h_exp, range(1:end-1)-fitex(1), septum_model_1D(fitvals(ii,1),fitvals(ii,2),param.psfFWHM,param.pixSz,range))
-%         plot(h_exp, range(1:end-1), septum_model_1D(fitvals(ii,1),fitvals(ii,2),param.psfFWHM,param.pixSz,range))
+        plot(h_exp, halfrange, septum_model_1D(fitvals(ii,1),fitvals(ii,2),param.psfFWHM,param.pixSz,range))
 %         figure(hRawInt);
 %         plot(imp);
         ylabel('raw intensity')
@@ -214,9 +205,9 @@ for ii = 1:size(imstack,3)
     %% Fit orthogonal intensity line profile to generalized (or 'super') Gaussian model
     
     linep_ax = orthprof(ii,~isnan(orthprof(ii,:)));
-    if isempty(linep_ax) || length(linep_ax)<5 || ~any(linep_ax~=linep_ax(1))
+    if isempty(linep_ax) || length(linep_ax)<5
         FWHM_ax = NaN;
-%         se_ax = ones(1,5)*NaN;
+        se_ax = ones(1,5)*NaN;
     else
         linep_ax_proc = linep_ax - min(linep_ax);
         linep_ax_proc = linep_ax_proc / max(linep_ax_proc);
@@ -228,28 +219,25 @@ for ii = 1:size(imstack,3)
             hold(h_gauss, 'on')
         end
         
-%         superGaussian = @(a,x)  exp(-((x-a(1)).^2 / (2*a(2)^2)).^ a(3));
-        superGaussian = @(a,x) a(4) * exp(-((x-a(1)).^2 / (2*a(2)^2)).^ a(3)) + a(5);
+        superGaussian = @(a,x)  exp(-((x-a(1)).^2 / (2*a(2)^2)).^ a(3));
         initwidth = 5;
-%         initguess = [mean(x), initwidth, 1];
-        initguess = [mean(x) initwidth 1 1 0];
+        initguess = [mean(x), initwidth, 1];
         options = optimoptions('lsqcurvefit', 'Display', 'off');
-%         lb = [0 0 0.5];
-        lb = [0 0 0.5 0 0];
+        lb = [0 0 0.5];
         [a, rn, res, ~, ~, ~, J] = lsqcurvefit(superGaussian, initguess, x, linep_ax_proc, lb, [], options);
         sst = sum((linep_ax_proc - mean(linep_ax_proc)).^2);
         Rsq = 1 - rn/sst;
         
-%         [~, se_ax] = nlparci2(a, real(res), 'Jacobian', real(J));
+        [~, se_ax] = nlparci2(a, real(res), 'Jacobian', real(J));
 
-%         xC = a(1);
+        xC = a(1);
         par_d = a(2);
         par_e = a(3);
         FWHM_ax = 2*sqrt(2)*par_d*(log(2))^(1/(2*par_e));
-%         x0ax = xC - FWHM_ax/2;
-%         x1 = xC + FWHM_ax/2;
-%         widthResult = [xC, x0ax, x1];
-%         intensity = sum(linep_ax_proc);
+        x0ax = xC - FWHM_ax/2;
+        x1 = xC + FWHM_ax/2;
+        widthResult = [xC, x0ax, x1];
+        intensity = sum(linep_ax_proc);
         
         if param.plot_gauss
             tv = x(1):(x(2)-x(1))/10:x(end);
@@ -258,8 +246,7 @@ for ii = 1:size(imstack,3)
 
     end
     
-%     fitvals_ax(ii,:) = [FWHM_ax se_ax(2)];
-    fitvals_ax(ii,:) = [FWHM_ax Rsq];
+    fitvals_ax(ii,:) = [FWHM_ax se_ax(2)];
     
     %% Plot image with septal and axial axes
     
