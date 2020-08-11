@@ -110,6 +110,10 @@ for ii = 1:size(imstack,3)
     
     % rotate image by theta (x = septal axis, y = cell axis)
     rotim = imrotate(frame, theta*180/pi);
+    if plot_im
+        hold(h_im, 'off')
+        imagesc(h_im, rotim)
+    end
     
     % find new center of septum (moves after imrotate operation)
     Rz = rotz(-theta*180/pi); % don't know why it needs to be -theta, but it does
@@ -254,6 +258,5 @@ for ii = 1:size(imstack,3)
         plot(h_im, xs, ones(1,length(xs))*xy0r(2), 'k', 'linew', 2)
         ys = xy0r(2)-r0:0.1:xy0r(2)+r0;
         plot(h_im, ones(1,length(ys))*xy0r(1), ys, 'r', 'linew', 2)
-
     end
 end

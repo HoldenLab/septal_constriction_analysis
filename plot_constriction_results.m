@@ -8,7 +8,7 @@ fit_dat = 1;
 
 plot_raw_dat = 0;
 plot_fit_dat = 1;
-plot_teff =  0;
+plot_teff =  1;
 plot_d_vs_alph = 0;
 plot_perturbed = 0;
 plot_intensity = 0;
@@ -155,6 +155,7 @@ if fit_dat
             Rsq_pre_con = 1 - rn_onlyconpre/sst_pre_con;
         else
             cfit_pre = [];
+            fcn = [];
             Rsq_pre = NaN;
             Rsq_pre_con = NaN;
             n_pre = NaN;
@@ -181,6 +182,7 @@ if fit_dat
             Rsq_post_con = 1 - rn_onlycon/sst_post_con;
         else
             cfit_post = [];
+            fcn = [];
             Rsq_post = NaN;
             Rsq_post_con = NaN;
             n_post = NaN;
@@ -198,18 +200,21 @@ if fit_dat
 
             if Rsq_pre_con > Rsq_thresh && n_pre>5
                 %             hold off
-                plot(dat(ii).preTime-dat(ii).param.t_cpd, dat(ii).preDiam, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre'], 'linew', 1)
+%                 plot(dat(ii).preTime-dat(ii).param.t_cpd, dat(ii).preDiam, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre'], 'linew', 1)
+%                 plot(dat(ii).preTime-cfit_pre(1), dat(ii).preDiam, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre'], 'linew', 1)
                 %             hold on
                 tvf = dat(ii).preTime(1):0.1:dat(ii).preTime(end);
-                plot(tvf-dat(ii).param.t_cpd, fcn(cfit_pre,tvf), 'k', 'DisplayName', '')
+%                 plot(tvf-dat(ii).param.t_cpd, fcn(cfit_pre,tvf), 'k', 'DisplayName', '')
+%                 plot(tvf-cfit_pre(1), fcn(cfit_pre,tvf), 'k', 'DisplayName', '')
                 %             teff = cfit_pre(3)^2 ./ cfit_pre(2);
                 teff = d0^2 ./ cfit_pre(2);
             end
             if Rsq_post_con > Rsq_thresh && n_post>5
-                plot(dat(ii).postTime-dat(ii).param.t_cpd, dat(ii).postDiam, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_post'], 'linew', 1)
+%                 plot(dat(ii).postTime-dat(ii).param.t_cpd, dat(ii).postDiam, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_post'], 'linew', 1) % cut trace
+                plot(tfit_c-dat(ii).param.t_cpd, dfit_c, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_post'], 'linew', 1) % full trace
                 
                 tvf = dat(ii).postTime(1):0.1:dat(ii).postTime(end);
-                plot(tvf-dat(ii).param.t_cpd, fcn(cfit_post,tvf), 'r', 'DisplayName', '')
+%                 plot(tvf-dat(ii).param.t_cpd, fcn(cfit_post,tvf), 'r', 'DisplayName', '')
                 %             teff = cfit(3)^2 ./ cfit(2);
                 teff = d0^2 ./ cfit_post(2);
             end
