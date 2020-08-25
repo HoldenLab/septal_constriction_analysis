@@ -4,7 +4,7 @@
 % This function fits an image of a bacterial septum to an explicit model
 % using a minimization routine.
 
-function [improf, orthprof, fitvals, fitvals_ax] = fit_septum_explicit_1D_segment(imstack, plot_im, param,xy0,olaystack_cropped)
+function [improf, orthprof, fitvals, fitvals_ax] = fit_septum_explicit_1D_segment(imstack, plot_im, param, xy0, olaystack_cropped)
 
 plot_gauss = param.plot_gauss;
 plot_explicit = param.plot_explicit;
@@ -14,22 +14,21 @@ blobarea_pix = blobedge^2 / param.pixSz^2; % [pix^2]
 
 %r0 = 2000 / 2 / param.pixSz; % [pix] half of line length for profile. updated 200217
 r0r = floor(1500 / 2 / param.pixSz); % [pix] half of line length for profile.
-r0ax = floor(1200 / 2 / param.pixSz); % [pix] half of line length for profile.
+r0ax = floor(2000 / 2 / param.pixSz); % [pix] half of line length for profile.
 ybox = floor(500 / 2 / param.pixSz); % [pix] width of septum for line profile
 xbox = floor(1000 / 2 / param.pixSz); % [pix] width of septum for axial line profile. also the name of a popular game console.
 
 if plot_im
-    figure
+    figure('Position',[1100 450 400 300])
     h_im = gca;
 end
 if param.plot_gauss
-    figure('Position',[100 300 500 400])
+    figure('Position',[700 450 400 300])
     h_gauss = gca;
 end
-if plot_explicit
-    figure('Position',[100 600 500 400])
+if param.plot_explicit
+    figure('Position',[700 50 400 300])
     h_exp = gca;
-    hRawInt = figure;
 end
 
 %before we do the fit
@@ -63,27 +62,6 @@ theta = theta0;
 %pause
 %%DEBUG>
 
-% multilevel thresh
-thr = multithresh(imstack, 3);
-seg_f = imquantize(imstack, thr);
-
-bwframe = seg_f > length(thr); % top level
-
-if ~isfield(param,'ZGFP') || param.ZGFP == 0
-    cc = bwconncomp(bwframe);
-    if cc.NumObjects < 2
-        bwframe2 = seg_f > length(thr)-1;
-        bwframe = bwframe2;
-    end
-end
-
-% remove all but one or two blobs from image
-BW = bwareafilt(bwframe, 2, 'largest');
-bwframe(BW==0) = 0;
-
-props2 = regionprops(bwframe, 'Centroid', 'Area', 'Orientation', 'MajorAxisLength', 'Area');
-cents = cat(1, props2.Centroid); % centroids in image
-
 superGaussian = @(a,x)  a(4)*exp(-((x-a(1)).^2 / (2*a(2)^2)).^ a(3))+a(5);
 
 improf=[]; orthprof=[]; fitvals=[]; fitvals_ax=[];
@@ -94,10 +72,28 @@ for ii = 1:size(imstack,3)
     if param.plot_gauss
         hold(h_gauss, 'off')
     end
-    if plot_explicit
+    if param.plot_explicit
         hold(h_exp, 'off')
     end
     
+    % multilevel thresh
+    thr = multithresh(frame, 3);
+    seg_f = imquantize(frame, thr);
+    
+    bwframe = seg_f > length(thr); % top level
+    
+    if ~isfield(param,'ZGFP') || param.ZGFP == 0
+        cc = bwconncomp(bwframe);
+        if cc.NumObjects < 2
+            bwframe2 = seg_f > length(thr)-1;
+            bwframe = bwframe2;
+        end
+    end
+    
+    % remove all but one or two blobs from image
+    BW = bwareafilt(bwframe, 2, 'largest');
+    bwframe(BW==0) = 0;
+
     %% Process image - try to find two blobs
     
     if isnan(theta(ii))
@@ -108,34 +104,37 @@ for ii = 1:size(imstack,3)
         continue
     end
     
-    if size(cents,1) == 2 % nascent ring
-        % exception: if the area of either blob is too big, it's basically
-        % never a nascent ring.
-        if props2(1).Area>blobarea_pix || props2(2).Area>blobarea_pix
-            
-            % mature ring. added 200217
-            if props2(1).Area > props2(2).Area
-                ind = 1;
-            else
-                ind = 2;
-            end
-            xy0 = cents(ind,:);
-            %         theta = -props(ind).Orientation * pi/180; % minus sign because it needs to be reflected about y axis.
-        else
-            width = (cents(2,:) - cents(1,:)) / 2; % distance from centroid to centroid
-            xy0 = cents(2,:) - width; % position of center between centroids
-            %         theta = atan((cents(2,2)-cents(1,2))./(cents(2,1)-cents(1,1))); % orientation of septum
-        end
-    elseif size(cents,1) == 1 % mature ring
-        xy0 = cents;
-        %     theta = -props.Orientation * pi/180; % minus sign because it needs to be reflected about y axis.
-    else % probably no centroid because image is utter crap
-        improf(ii,:) = ones(1,size(improf,2))*NaN;
-        orthprof(ii,:) = ones(size(orthprof,2),1)*NaN;
-        fitvals(ii,:) = [NaN NaN NaN NaN];
-        fitvals_ax(ii,:) = [NaN NaN];
-        continue
-    end
+%     props2 = regionprops(bwframe, 'Centroid', 'Area', 'Orientation', 'MajorAxisLength', 'Area');
+%     cents = cat(1, props2.Centroid); % centroids in image
+    
+%     if size(cents,1) == 2 % nascent ring
+%         % exception: if the area of either blob is too big, it's basically
+%         % never a nascent ring.
+%         if props2(1).Area>blobarea_pix || props2(2).Area>blobarea_pix
+%             
+%             % mature ring. added 200217
+%             if props2(1).Area > props2(2).Area
+%                 ind = 1;
+%             else
+%                 ind = 2;
+%             end
+%             xy0 = cents(ind,:);
+%             %         theta = -props(ind).Orientation * pi/180; % minus sign because it needs to be reflected about y axis.
+%         else
+%             width = (cents(2,:) - cents(1,:)) / 2; % distance from centroid to centroid
+%             xy0 = cents(2,:) - width; % position of center between centroids
+%             %         theta = atan((cents(2,2)-cents(1,2))./(cents(2,1)-cents(1,1))); % orientation of septum
+%         end
+%     elseif size(cents,1) == 1 % mature ring
+%         xy0 = cents;
+%         %     theta = -props.Orientation * pi/180; % minus sign because it needs to be reflected about y axis.
+%     else % probably no centroid because image is utter crap
+%         improf(ii,:) = ones(1,size(improf,2))*NaN;
+%         orthprof(ii,:) = ones(size(orthprof,2),1)*NaN;
+%         fitvals(ii,:) = [NaN NaN NaN NaN];
+%         fitvals_ax(ii,:) = [NaN NaN];
+%         continue
+%     end
     %% Get intensity profile across septum
     
     % rotate image by theta (x = septal axis, y = cell axis)
@@ -146,7 +145,8 @@ for ii = 1:size(imstack,3)
     end
     
     Rz = rotz(-theta(ii)*180/pi); % don't know why it needs to be -theta, but it does
-    vec1 = [xy0(ii,1)-(size(frame,1)+1)/2; xy0(ii,2)-(size(frame,2)+1)/2; 0]; % vector from center of septum to center of image
+%     vec1 = [xy0(ii,1)-(size(frame,1)+1)/2; xy0(ii,2)-(size(frame,2)+1)/2; 0]; % vector from center of septum to center of image
+    vec1 = [xy0(1)-(size(frame,1)+1)/2; xy0(2)-(size(frame,2)+1)/2; 0]; % vector from center of septum to center of image
     vec1rot = Rz*vec1; % rotated vector
     xy0r = [vec1rot(1)+(size(rotim,1)+1)/2; vec1rot(2)+(size(rotim,2)+1)/2; 0]; % new center of septum (image rotated, size changed)
     xy0r = round(xy0r); % image is discrete pixels - need integer values
@@ -231,9 +231,9 @@ for ii = 1:size(imstack,3)
          plot(h_exp, imp_proc)
          hold(h_exp, 'on')
          plot(h_exp, halfrange, septum_model_1DZ(fitvals(ii,1),fitvals(ii,2),250,65,range, fitvals(ii,3)));
-         figure(hRawInt);
-         plot(imp);
-         ylabel('raw intensity')
+%          figure(hRawInt);
+%          plot(imp);
+%          ylabel('raw intensity')
      end
 
     %%alternative supergaussian septal fit
@@ -307,7 +307,7 @@ for ii = 1:size(imstack,3)
     %% Plot image with septal and axial axes
     
     if plot_im
-        hold(h_im, 'on')
+%         hold(h_im, 'on')
         
         hold(h_im, 'on')
         xs = xy0r(1)-r0r:0.1:xy0r(1)+r0r;

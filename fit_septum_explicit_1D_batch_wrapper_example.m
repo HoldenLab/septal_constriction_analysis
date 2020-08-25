@@ -9,8 +9,14 @@
 
 %% User-set parameters
 
+<<<<<<< Updated upstream
 param.ZGFP = 0; % are these images ZGFP strain? changes some image processing.
 param.plot_im = 0; % plot septum images with fitted diameter
+=======
+param.ZGFP = 1; % are these images ZGFP strain? changes some image processing. 
+%CURRENTLY ZGFP uses the olay image
+param.plot_im = 1; % plot septum images with fitted diameter
+>>>>>>> Stashed changes
 param.plot_gauss = 0;
 param.plot_explicit = 0;
 param.plot_raw = 1; % plot raw constriction vs. time data
