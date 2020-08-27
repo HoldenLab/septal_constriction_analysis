@@ -13,10 +13,14 @@
 % 3. fit_constriction_data fits the septum diameter vs. time to a model of
 % the user's choice.
 
-function ud = fit_septum_explicit_1D_batch_stripped(fullstack, tracks, param, tracknums)
+function ud = fit_septum_explicit_1D_batch_stripped(fullstack, tracks, param, xy0, olaystack, tracknums)
 
-if nargin < 4
+if nargin < 6
     tracknums = 1:param.ntracks;
+end
+if nargin < 4
+    xy0 = [];
+    olaystack = [];
 end
 
 if param.plot_raw
@@ -37,13 +41,17 @@ if param.plot_raw
     
     gr = figure('FileName', fname, 'Position', [100 100 500 400]);
 %     gr = figure('FileName', [param.path '/' param.analysis_date]);
-    hh = gcf;
-    hr = gca;
+    hr = subplot(211);
+    box on
+    hold on
+    title(['Raw constriction traces for ' strrep(param.im_file,'_','\_')])
+    ylabel('Diameter (nm)')
+    
+    hh = subplot(212);
     hold on
     box on
+    ylabel('Thickness (nm)')
 %     subplot(3,1,1);
-    title(['Raw constriction traces for ' strrep(param.im_file,'_','\_')])
-    ylabel('Septum width (nm)')
 %     subplot(3,1,2);
 %     ylabel('Axial width (nm)')
 %     subplot(3,1,3);
@@ -62,13 +70,16 @@ for ii = tracknums
         disp('microbeJ recorded division event. removing.')
         continue
     else
-        [stack, centx, centy, imframes] = separate_microbej_tracks(fullstack, tracks, ii, param.s_box, param.n_frames_before);
+        [stack, centx, centy, imframes, olaystack_cropped, xy0_subim] = separate_microbej_tracks(fullstack, tracks, ii, param.s_box, param.n_frames_before, olaystack);
     end
     
     %% Obtain line profiles for all frames
     
-%     [improfs_rad, improfs_ax, fit_rad, fit_ax] = fit_septum_explicit_1D(stack, param.plot_im, param);
-    [improfs_rad, improfs_ax, fit_rad, fit_ax] = fit_septum_explicit_1D_imrot(stack, param.plot_im, param);
+    if param.ZGFP
+        [improfs_rad, improfs_ax, fit_rad, fit_ax] = fit_septum_explicit_1D_segment(stack, param.plot_im, param, xy0_subim, olaystack_cropped);
+    else
+        [improfs_rad, improfs_ax, fit_rad, fit_ax] = fit_septum_explicit_1D_imrot(stack, param.plot_im, param);
+    end
 
     avail_frames_before = imframes(1); % how many frames before can we use?
     frames_before = min([param.n_frames_before avail_frames_before]);
@@ -172,7 +183,6 @@ for ii = tracknums
 %     t_ax(badIdx3_ax) = [];
 %     int_ax(badIdx3_ax) = [];
     badIdx3_rad = fiterrs > 1.1;
-%     badIdx3_rad = fiterrs > 0.5;
     diams(badIdx3_rad) = [];
     linecents(badIdx3_rad) = [];
     t_rad(badIdx3_rad) = [];
@@ -254,13 +264,13 @@ for ii = tracknums
     ud.rawDat(ii).cutdiams_ax = fCrop_ax;
 
     if param.plot_raw
-        plot(hr, tCrop_rad, dCrop)
+%         plot(hr, tCrop_rad, dCrop)
         
-%         figure(hh);
-%         subplot(3,1,1);
-%         plot(tCrop_rad, dCrop)
-%         subplot(3,1,2);
-%         plot(ud.rawDat(ii).time,ud.rawDat(ii).width_ax)
+%         figure(hh)
+%         subplot(2,1,1)
+        plot(hr, tCrop_rad, dCrop)
+%         subplot(2,1,2)
+        plot(hh, tCrop_ax,fCrop_ax)
 %         subplot(3,1,3);
 %         plot(ud.rawDat(ii).time,ud.rawDat(ii).intensity)
 

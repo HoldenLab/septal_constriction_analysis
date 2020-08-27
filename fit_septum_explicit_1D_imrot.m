@@ -14,18 +14,18 @@ ybox = floor(325 / 2 / param.pixSz); % [pix] width of septum for line profile
 xbox = floor(1000 / 2 / param.pixSz); % [pix] width of septum for axial line profile. also the name of a popular game console.
 
 if plot_im
-    figure
+    figure('Position',[1100 450 400 300])
     h_im = gca;
 %     hIm0=figure;
 %     hIm1=figure;
 end
 if param.plot_gauss
-    figure
+    figure('Position',[700 450 400 300])
     h_gauss = gca;
 end
 
 if param.plot_explicit
-    figure('Position',[100 300 500 400])
+    figure('Position',[700 50 400 300])
     h_exp = gca;
 %     hRawInt = figure;
 end
@@ -240,7 +240,7 @@ for ii = 1:size(imstack,3)
         sst = sum((linep_ax_proc - mean(linep_ax_proc)).^2);
         Rsq = 1 - rn/sst;
         
-%         [~, se_ax] = nlparci2(a, real(res), 'Jacobian', real(J));
+        [~, se_ax] = nlparci2(a, real(res), 'Jacobian', real(J));
 
 %         xC = a(1);
         par_d = a(2);
@@ -258,8 +258,8 @@ for ii = 1:size(imstack,3)
 
     end
     
-%     fitvals_ax(ii,:) = [FWHM_ax se_ax(2)];
-    fitvals_ax(ii,:) = [FWHM_ax Rsq];
+    fitvals_ax(ii,:) = [FWHM_ax se_ax(2)];
+%     fitvals_ax(ii,:) = [FWHM_ax Rsq];
     
     %% Plot image with septal and axial axes
     

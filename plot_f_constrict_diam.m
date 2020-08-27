@@ -27,13 +27,13 @@ plot_f_con_vs_Zintensity = 0; % vs. FtsZ intensity
 plot_f_con_manualclass = 0; % vs. division stage, manually classified (column 13)
 plot_f_con_autoclass = 0; % vs. division stage, automatically classified by diameter and thickness
 plot_f_con_2Bint_norm = 0; % vs. low/high PBP2B intensity (normalized if possible)
-plot_f_con_Zint_norm = 0; % vs. low/high FtsZ intensity (normalized if possible)
+plot_f_con_Zint_norm = 1; % vs. low/high FtsZ intensity (normalized if possible)
 
 % make scatter plots of various properties and whether septa continued
 % division post-treatment
-plot_scatter_diameter_thickness = 1; % septal diameter vs. thickness
+plot_scatter_diameter_thickness = 0; % septal diameter vs. thickness
 plot_scatter_diameter_2Bintensity = 0; % septal diameter vs. PBP2B intensity (normalized if possible)
-plot_scatter_diameter_Zintensity = 0; % septal diameter vs. FtsZ intensity (normalized if possible)
+plot_scatter_diameter_Zintensity = 1; % septal diameter vs. FtsZ intensity (normalized if possible)
 plot_scatter_2Bintensity_Zintensity = 0; % PBP2B intensity vs. FtsZ intensity (both normalized if possible)
 
 plot_f_condense_thickness = 0; % make stacked bar plot of % septa condensed post-treatment vs. septal thickness
@@ -41,8 +41,14 @@ plot_scatter_diameter_thickness_condense = 0; % make scatter plot of septal diam
 
 plot_f_low2B_increase = 0; % make stacked bar plot of % septa where low PBP2B signal increased post-treatment
 
-ud.use_relative_diameter = 0; % use relative septal diameter (otherwise use absolute)
-ud.is_2color = 0; % is this the 2-color strain?
+ud.use_relative_diameter = 1; % use relative septal diameter (otherwise use absolute)
+ud.is_2color = 1; % is this the 2-color strain?
+
+if ud.is_2color
+    thickness_thresh = 450; % [nm] 2-color (poor SNR)
+else
+    thickness_thresh = 400; % [nm] 1-color
+end
 
 % Thresholds for data filters
 cent = median(dat(~isnan(dat(:,5)),5));
@@ -51,14 +57,14 @@ ud.cent_cut = [cent-2*sig_cent cent+2*sig_cent]; % [pix] cut on fitted center of
 % ud.diam_cut = [700 1200] /65/2; % [pix] cut on radial diameter
 ud.diam_cut = [0 Inf] /65/2; % [pix] cut on radial diameter
 ud.diam_err_cut = [0 0.7]; % cut on radial fitting error
-% ud.thick_cut = [0 400] /65; % [pix] cut on axial width
-ud.thick_cut = [0 Inf] /65; % [pix] cut on axial width
+ud.thick_cut = [0 thickness_thresh] /65; % [pix] cut on axial width
+% ud.thick_cut = [0 Inf] /65; % [pix] cut on axial width
 ud.thick_err_cut = [0 1]; % cut on error in fitting for axial diameters
 ud.int_2b_cut = [0 Inf]; % cut on 2B intensity
 ud.class_cut = [0 Inf]; % cut on classification
 ud.int_Z_cut = [0 Inf]; % cut on Z intensity
 if ud.use_relative_diameter
-    ud.rel_diam_cut = [0 1.2]; % cut on relative diameter
+    ud.rel_diam_cut = [0.9 1.3]; % cut on relative diameter
 end
 
 % Add relative septal diameters to data matrix based on each individual d0
@@ -88,13 +94,11 @@ dat = cutmat(dat, 12, ud.int_2b_cut); % cut on PBP2B intensity
 dat = cutmat(dat, 13, ud.class_cut); % cut on manual classification
 dat = cutmat(dat, 14, ud.int_Z_cut); % cut on FtsZ intensity
 if ud.use_relative_diameter
+    if size(dat,2)>18
+        dat = cutmat(dat, 19, ud.cent_cut); % cut on nascent ring center position
+        dat = cutmat(dat, 20, ud.diam_err_cut); % cut on nascent ring diameter fit error
+    end
     dat = cutmat(dat, lastcol, ud.rel_diam_cut); % cut on relative diameter
-end
-
-if ud.is_2color
-    thickness_thresh = 450; % [nm] 2-color (poor SNR)
-else
-    thickness_thresh = 400; % [nm] 1-color
 end
 
 if plot_f_con_vs_diameter
@@ -534,10 +538,17 @@ if plot_scatter_diameter_2Bintensity
     hold on
     box on
     
-    scatter(yups(:,6)*65*2, yups(:,12), 'MarkerEdgeColor', 'k',...
-        'MarkerFaceColor', 'b', 'MarkerFaceAlpha', 0.5, 'SizeData', 50)
-    scatter(nopes(:,6)*65*2, nopes(:,12), 'MarkerEdgeColor', 'k',...
-        'MarkerFaceColor', 'r', 'MarkerFaceAlpha', 0.5, 'SizeData', 50)
+    if ud.use_relative_diameter
+        scatter(yups(:,lastcol), yups(:,12), 'MarkerEdgeColor', 'k',...
+            'MarkerFaceColor', 'b', 'MarkerFaceAlpha', 0.5, 'SizeData', 50)
+        scatter(nopes(:,lastcol), nopes(:,12), 'MarkerEdgeColor', 'k',...
+            'MarkerFaceColor', 'r', 'MarkerFaceAlpha', 0.5, 'SizeData', 50)
+    else
+        scatter(yups(:,6)*65*2, yups(:,12), 'MarkerEdgeColor', 'k',...
+            'MarkerFaceColor', 'b', 'MarkerFaceAlpha', 0.5, 'SizeData', 50)
+        scatter(nopes(:,6)*65*2, nopes(:,12), 'MarkerEdgeColor', 'k',...
+            'MarkerFaceColor', 'r', 'MarkerFaceAlpha', 0.5, 'SizeData', 50)
+    end
     
     legend('Continued constricting', 'Did not constrict')
     xlabel('Diameter (nm)')
@@ -555,10 +566,17 @@ if plot_scatter_diameter_Zintensity
     hold on
     box on
     
-    scatter(yups(:,6)*65*2, yups(:,14), 'MarkerEdgeColor', 'k',...
-        'MarkerFaceColor', 'b', 'MarkerFaceAlpha', 0.5, 'SizeData', 50)
-    scatter(nopes(:,6)*65*2, nopes(:,14), 'MarkerEdgeColor', 'k',...
-        'MarkerFaceColor', 'r', 'MarkerFaceAlpha', 0.5, 'SizeData', 50)
+    if ud.use_relative_diameter
+        scatter(yups(:,lastcol), yups(:,14), 'MarkerEdgeColor', 'k',...
+            'MarkerFaceColor', 'b', 'MarkerFaceAlpha', 0.5, 'SizeData', 50)
+        scatter(nopes(:,lastcol), nopes(:,14), 'MarkerEdgeColor', 'k',...
+            'MarkerFaceColor', 'r', 'MarkerFaceAlpha', 0.5, 'SizeData', 50)
+    else
+        scatter(yups(:,6)*65*2, yups(:,14), 'MarkerEdgeColor', 'k',...
+            'MarkerFaceColor', 'b', 'MarkerFaceAlpha', 0.5, 'SizeData', 50)
+        scatter(nopes(:,6)*65*2, nopes(:,14), 'MarkerEdgeColor', 'k',...
+            'MarkerFaceColor', 'r', 'MarkerFaceAlpha', 0.5, 'SizeData', 50)
+    end
     
     legend('Continued constricting', 'Did not constrict')
     xlabel('Diameter (nm)')

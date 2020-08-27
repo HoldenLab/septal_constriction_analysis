@@ -53,7 +53,12 @@ end
 %use a robust fit
 % brob=robustfit(t,theta0);
 % theta=brob(1)+brob(2)*t;
+<<<<<<< Updated upstream:old/fit_septum_explicit_1D_2C2B.m
 theta = theta0;
+=======
+
+theta = theta0; % hack - fitting is poor
+>>>>>>> Stashed changes:fit_septum_explicit_1D_ZGFP.m
 %%<DEBUG
 %figure;
 %hold all;

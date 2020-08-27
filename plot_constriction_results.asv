@@ -72,29 +72,23 @@ if plot_thick_filt
         edat_rad = undat(ii).fiterrs(:);
         centdat = undat(ii).linecents(:);
         
-        % cut anything where fitted center of line profile was far off
-        % image center (often gives huge diameters with artificially small
-        % errors).
-        centmin = 15;
-        centmax = 23.5;
-        centind = centdat>centmin & centdat<centmax;
-        tdat = tdat(centind);
-        edat_ax = edat_ax(centind);
-        axdat = axdat(centind);
-        raddat = raddat(centind);
-        edat_rad = edat_rad(centind);
-        
         minthresh_ax = 100;
         maxthresh_ax = 2000;
         tdat_ax = tdat(axdat>minthresh_ax & axdat<maxthresh_ax);
         edat_ax = edat_ax(axdat>minthresh_ax & axdat<maxthresh_ax);
         axdat = axdat(axdat>minthresh_ax & axdat<maxthresh_ax);
-
+        
+        cent
+        
+%         maxthresh_rad = 1400;
+%         tdat_rad = tdat(raddat<maxthresh_rad);
         tdat_rad = tdat;
-
-        errthresh_ax = 0.4;
-        tdat_ax = tdat_ax(edat_ax<errthresh_ax);
-        axdat = axdat(edat_ax<errthresh_ax);
+%         edat_rad = edat_rad(raddat<maxthresh_rad);
+%         raddat = raddat(raddat<maxthresh_rad);
+        
+        errthresh_ax = 0.95;
+        tdat_ax = tdat_ax(edat_ax>errthresh_ax);
+        axdat = axdat(edat_ax>errthresh_ax);
         
         errthresh_rad = 0.4;
         tdat_rad = tdat_rad(edat_rad<errthresh_rad);
@@ -239,7 +233,6 @@ if fit_dat
             Rsq_post_con = 1 - rn_onlycon/sst_post_con;
         else
             cfit_post = [];
-            fcn = [];
             Rsq_post = NaN;
             Rsq_post_con = NaN;
             n_post = NaN;
