@@ -26,14 +26,14 @@ plot_f_con_vs_2Bintensity = 0; % vs. PBP2B intensity
 plot_f_con_vs_Zintensity = 0; % vs. FtsZ intensity
 plot_f_con_manualclass = 0; % vs. division stage, manually classified (column 13)
 plot_f_con_autoclass = 0; % vs. division stage, automatically classified by diameter and thickness
-plot_f_con_2Bint_norm = 0; % vs. low/high PBP2B intensity (normalized if possible)
-plot_f_con_Zint_norm = 1; % vs. low/high FtsZ intensity (normalized if possible)
+plot_f_con_2Bint_norm = 1; % vs. low/high PBP2B intensity (normalized if possible)
+plot_f_con_Zint_norm = 0; % vs. low/high FtsZ intensity (normalized if possible)
 
 % make scatter plots of various properties and whether septa continued
 % division post-treatment
 plot_scatter_diameter_thickness = 0; % septal diameter vs. thickness
 plot_scatter_diameter_2Bintensity = 0; % septal diameter vs. PBP2B intensity (normalized if possible)
-plot_scatter_diameter_Zintensity = 1; % septal diameter vs. FtsZ intensity (normalized if possible)
+plot_scatter_diameter_Zintensity = 0; % septal diameter vs. FtsZ intensity (normalized if possible)
 plot_scatter_2Bintensity_Zintensity = 0; % PBP2B intensity vs. FtsZ intensity (both normalized if possible)
 
 plot_f_condense_thickness = 0; % make stacked bar plot of % septa condensed post-treatment vs. septal thickness
@@ -57,14 +57,17 @@ ud.cent_cut = [cent-2*sig_cent cent+2*sig_cent]; % [pix] cut on fitted center of
 % ud.diam_cut = [700 1200] /65/2; % [pix] cut on radial diameter
 ud.diam_cut = [0 Inf] /65/2; % [pix] cut on radial diameter
 ud.diam_err_cut = [0 0.7]; % cut on radial fitting error
-ud.thick_cut = [0 thickness_thresh] /65; % [pix] cut on axial width
-% ud.thick_cut = [0 Inf] /65; % [pix] cut on axial width
+% ud.thick_cut = [0 thickness_thresh] /65; % [pix] cut on axial width
+ud.thick_cut = [0 Inf] /65; % [pix] cut on axial width
 ud.thick_err_cut = [0 1]; % cut on error in fitting for axial diameters
 ud.int_2b_cut = [0 Inf]; % cut on 2B intensity
 ud.class_cut = [0 Inf]; % cut on classification
 ud.int_Z_cut = [0 Inf]; % cut on Z intensity
 if ud.use_relative_diameter
-    ud.rel_diam_cut = [0.9 1.3]; % cut on relative diameter
+    radcut = 0.9;
+    ud.rel_diam_cut = [0 1.3]; % cut on relative diameter
+else
+    radcut = 700;
 end
 
 % Add relative septal diameters to data matrix based on each individual d0
@@ -316,11 +319,18 @@ if plot_f_con_autoclass
     axcut_mat = [0 thickness_thresh] /65;
     matcon = cutmat(dat, 10, axcut_mat); % matrix of mature and constricting rings
     
-    radcut_mat = [700 1200] /65/2;
-    mats = cutmat(matcon, 6, radcut_mat); % matrix of mature rings
+    if ud.use_relative_diameter
+        radcut_mat = [radcut 1.3];        
+        radcut_cons = [0 radcut];
+        cutcol = lastcol;
+    else
+        radcut_mat = [radcut 1200] /65/2;
+        radcut_cons = [0 radcut] /65/2;
+        cutcol = 6;
+    end
     
-    radcut_cons = [0 700] /65/2;
-    cons = cutmat(matcon, 6, radcut_cons); % matrix of constricting rings
+    mats = cutmat(matcon, cutcol, radcut_mat); % matrix of mature rings
+    cons = cutmat(matcon, cutcol, radcut_cons); % matrix of constricting rings
     
     fcon=[]; se_fcon=[];
     if length(nasc(:,8)) > 1
@@ -657,7 +667,7 @@ if plot_f_condense_thickness
     bar(fcon*100, 'stacked')
 %     errorbar(0:1, fcon*100, se_fcon*100/2, 'k', 'LineStyle','none')
     ylim([0 105])
-    ylabel('% Continuing constriction')
+    ylabel('% Condensed')
     set(gcf, 'UserData', ud)
 end
 
