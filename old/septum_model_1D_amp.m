@@ -31,8 +31,8 @@ ring_prof = abs(arcl_ip1 - arcl_i); % Delta(arc length)
 gpdf_fcn = @(a,x) 1/(a(2)*sqrt(2*pi)) * exp(-(x-a(1)).^2 ./ (2*a(2)^2));
 gauss = gpdf_fcn([0 sigma], x1);
 
-ring_prof = conv(ring_prof, gauss); % convolve with Gaussian psf
-ring_prof = ring_prof(floor(length(gauss)/2):floor((end-length(gauss)/2))+1); % cut ends (convolution increases length of vector)
+ring_prof = conv(ring_prof, gauss, 'same'); % convolve with Gaussian psf
+% ring_prof = ring_prof(floor(length(gauss)/2):floor((end-length(gauss)/2))+1); % cut ends (convolution increases length of vector)
 
 ring_prof_scale = ring_prof/max(ring_prof(:));
 
