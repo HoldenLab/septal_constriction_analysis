@@ -80,6 +80,7 @@ for ii = tracknums
     else
         [improfs_rad, improfs_ax, fit_rad, fit_ax] = fit_septum_explicit_1D_imrot(stack, param.plot_im, param);
     end
+%         [improfs_rad, improfs_ax, fit_rad, fit_ax] = fit_septum_explicit_1D_segment(stack, param.plot_im, param, xy0_subim, olaystack_cropped);
 
     avail_frames_before = imframes(1); % how many frames before can we use?
     frames_before = min([param.n_frames_before avail_frames_before]);
