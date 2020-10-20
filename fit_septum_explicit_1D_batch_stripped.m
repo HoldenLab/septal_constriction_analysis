@@ -75,12 +75,7 @@ for ii = tracknums
     
     %% Obtain line profiles for all frames
     
-    if param.ZGFP
-        [improfs_rad, improfs_ax, fit_rad, fit_ax] = fit_septum_explicit_1D_segment(stack, param.plot_im, param, xy0_subim, olaystack_cropped);
-    else
-        [improfs_rad, improfs_ax, fit_rad, fit_ax] = fit_septum_explicit_1D_imrot(stack, param.plot_im, param);
-    end
-%         [improfs_rad, improfs_ax, fit_rad, fit_ax] = fit_septum_explicit_1D_segment(stack, param.plot_im, param, xy0_subim, olaystack_cropped);
+    [improfs_rad, improfs_ax, fit_rad, fit_ax] = fit_septum_explicit_1D_general(stack, param.plot_im, param, xy0_subim, olaystack_cropped);
 
     avail_frames_before = imframes(1); % how many frames before can we use?
     frames_before = min([param.n_frames_before avail_frames_before]);
@@ -112,12 +107,15 @@ for ii = tracknums
         end
     end
     
-    linecents = fit_rad(:,1);
-    diams = abs(fit_rad(:,2)) *2*param.pixSz;
-    fiterrs = fit_rad(:,3); % should probably be *2*param.pixSz
+    linecents = fit_rad(:,1); % [pix]
+    diams = abs(fit_rad(:,2)) *2*param.pixSz; % [nm]
+    fiterrs = fit_rad(:,3); % [intensity^2] residual sum of squares from fit to line profile
     
-    FWHM_ax = fit_ax(:,1) *param.pixSz;
+    FWHM_ax = fit_ax(:,1) *param.pixSz; % [nm]
     se_ax = fit_ax(:,2); % should probably be *2*param.pixSz
+    
+%     FWHM_ax = fit_ax(:,2) *2*param.pixSz; % [nm]
+%     se_ax = fit_ax(:,3); % [intensity^2]
     
     time = frames * param.interval; % [min]
     
@@ -135,23 +133,21 @@ for ii = tracknums
         end
     end
 
-    % Filter data
-    
     %start with vars
     %time, intensity,se_ax,fiterrs (radial SE), diams (radial width),
     %FWHM_ax (axial width)
     %ud.rawDat(ii).cuttime = tCrop_rad;
     %make a struct array ud.datUnfilt
     ud.datUnfilt(ii).time = time;
-    ud.datUnfilt(ii).intensity= intensity;
-    ud.datUnfilt(ii).intensityMedian= intensityMedian;
+    ud.datUnfilt(ii).intensity = intensity;
+    ud.datUnfilt(ii).intensityMedian = intensityMedian;
     ud.datUnfilt(ii).se_ax = se_ax;
     ud.datUnfilt(ii).fiterrs = fiterrs;
     ud.datUnfilt(ii).linecents = linecents;
-    ud.datUnfilt(ii).diam= diams;
-    ud.datUnfilt(ii).FWHM_ax= FWHM_ax;
+    ud.datUnfilt(ii).diam = diams;
+    ud.datUnfilt(ii).FWHM_ax = FWHM_ax;
     
-    %% Cut results
+    %% Filter data
 
     MAXDIAM = 1400;
     MINDIAM = 50;
@@ -179,11 +175,15 @@ for ii = tracknums
 
     %independently each axis filters out too big fitting error
 %     badIdx3_ax = se_ax(4,:) > 2;
-    badIdx3_ax = se_ax > 0.5;
+%     badIdx3_ax = se_ax > 0.5;
+    badIdx3_ax = se_ax > 3e3; % SSR
+    badIdx3_ax = se_ax < 0.9; % R^2
 %     FWHM_ax(badIdx3_ax) = [];
 %     t_ax(badIdx3_ax) = [];
 %     int_ax(badIdx3_ax) = [];
-    badIdx3_rad = fiterrs > 1.1;
+%     badIdx3_rad = fiterrs > 1.1;
+    badIdx3_rad = fiterrs > 2e4; % SSR
+    badIdx3_rad = fiterrs < 0.9; % R^2
     diams(badIdx3_rad) = [];
     linecents(badIdx3_rad) = [];
     t_rad(badIdx3_rad) = [];
