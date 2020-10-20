@@ -13,16 +13,17 @@ end
 
 mu = guess(1);
 R = guess(2);
-amp = guess(3);
+bg = guess(3);
+amp = guess(4);
 % ring_grad = guess(3);
 psfFWHM = param.psfFWHM;
 pixSz = param.pixSz;
 
-prof_model = septum_model_1D_amp(mu, R, psfFWHM, pixSz, range, amp);
+prof_model = septum_model_1D_amp(mu, R, psfFWHM, pixSz, range, bg, amp);
 
 sp = range(2)-range(1); % spacing
 prof_model = downsample(prof_model, uint8(1/sp)); % same number of points as image profile
 
 diff = prof_im - prof_model;
 
-obj = sum(sum(diff.^2));
+obj = sum(diff.^2);

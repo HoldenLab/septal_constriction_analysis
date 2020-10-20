@@ -4,7 +4,7 @@
 % This function produces a line profile of a septum using an explicit
 % 'tilted circle' model.
 
-function improf = septum_model_1D_amp(X0, R, psfFWHM, pixSz, X, amp)
+function improf = septum_model_1D_amp(X0, R, psfFWHM, pixSz, X, bg, amp)
 
 if nargin==0
     X0 = 19.5335;
@@ -36,7 +36,7 @@ ring_prof = conv(ring_prof, gauss, 'same'); % convolve with Gaussian psf
 
 ring_prof_scale = ring_prof/max(ring_prof(:));
 
-improf = ring_prof_scale * amp;
+improf = ring_prof_scale * amp + bg;
 
 if nargin==0
 %     figure
