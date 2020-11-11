@@ -14,14 +14,15 @@ filter_dat = 1; % filter data based on fitting error, etc.
 fit_dat = 1; % process and fit data to selected model for constriction
     model = 'parabolic'; % constriction model to use
     Rsq_thresh = 0.8; % R^2 threshold for data to be plotted. also threshold for fitted values to be included in teff violin plots.
-segment_thickness = 1; % segment thickness traces
+segment_thickness = 0; % segment thickness traces
 d0 = 1100; % fix d0 for calculating teff. updated 200625.
 
 plot_unfitted_dat = 0; % plot data traces - filtered or raw
 plot_fitted_dat = 0; % plot processed traces with fitted model
     alignment = 't0'; % align fitted traces. 't0' = constriction start time, 'tcpd' = compound arrival time
     plot_model = 0; % plot fitted constriction model on top of traces
-plot_teff = 0; % make violin plots of effective constriction time (teff)
+    
+plot_teff = 1; % make violin plots of effective constriction time (teff)
 plot_perturbed = 0; % plot only traces where data was recorded DURING drug treatment
 plot_intensity = 0; % plot septal intensities over time
 
@@ -30,86 +31,88 @@ dat=[];
 for ii = 1:length(alldat2)
     for jj = 1:length(alldat2(ii).rawDat)
         
-        unfiltdat = alldat2(ii).datUnfilt(jj);
+        if str2double(alldat2(ii).param.analysis_date) < 200321 % old format. date is mostly a guess.
+            loaddat = alldat2(ii).rawDat(jj);
+            loaddat.FWHM_ax = alldat2(ii).rawDat(jj).cutdiams_ax;
+            loaddat.diam = alldat2(ii).rawDat(jj).cutdiams;
+            loaddat.time = loaddat.cuttime;
+            loaddat.time_ax = loaddat.cuttime_ax;
+        else
+            loaddat = alldat2(ii).datUnfilt(jj);
+        end
         
-        unfiltdat.num = alldat2(ii).rawDat(jj).num;
-        unfiltdat.param = alldat2(ii).param;
-        unfiltdat.im_date = alldat2(ii).param.im_file(1:6);
-        
+        loaddat.num = alldat2(ii).rawDat(jj).num;
+        loaddat.param = alldat2(ii).param;
+        loaddat.im_date = alldat2(ii).param.im_file(1:6);
         posind = strfind(alldat2(ii).param.im_file, 'Pos');
-        unfiltdat.pos = alldat2(ii).param.im_file(posind:posind+3);
-
-        dat = [dat; unfiltdat];
+        loaddat.pos = alldat2(ii).param.im_file(posind:posind+3);
+        
+        dat = [dat; loaddat];
     end
 end
 
 %% Filter data
 if filter_dat
-    
     % set thresholds
     if isfield(dat(1),'linecents') % for fitted line centers
         allcents = cat(1,dat(:).linecents);
         centmin = nanmean(allcents)-2*nanstd(allcents);
         centmax = nanmean(allcents)+2*nanstd(allcents);
-        %         centmin = 15;
-        %         centmax = 23.5;
+%                 centmin = 15;
+%                 centmax = 23.5;
         %         centmin = 11;
         %         centmax = 13.1;
     end
     
-    minthresh_ax = 0; % min thickness (unused)
-    maxthresh_ax = 1300; % max thickness (unused)
-    errthresh_ax = 0.90; % for R^2
-    errthresh_rad = 0.9; % for residual norm
-    %         errthresh_rad = 1.5; % for residual norm
-%     errthresh_rad = 0.90; % for R^2
+    errthresh_ax_r2 = 0.90; % for R^2
+    errthresh_rad = 1.0; % for residual norm
+    errthresh_rad_r2 = 0.90; % for R^2
     
     for ii = 1:length(dat)
         
         tdat = dat(ii).time(:);
         axdat = dat(ii).FWHM_ax(:);
-        edat_ax = dat(ii).se_ax(:);
         raddat = dat(ii).diam(:);
-        edat_rad = dat(ii).fiterrs(:);
         
-        % cut on fitted center of line profile (if center close to edge of
-        % image it often gives huge diameters with artificially small
-        % errors).
-        if isfield(dat(ii),'linecents')
-            centdat = dat(ii).linecents(:);
+        if str2double(dat(ii).param.analysis_date) > 200321 % new format. data starts unfiltered.
             
-            centind = centdat>centmin & centdat<centmax;
-            tdat = tdat(centind);
-            edat_ax = edat_ax(centind);
-            axdat = axdat(centind);
-            raddat = raddat(centind);
-            edat_rad = edat_rad(centind);
-        end
-
-        % cut axial and radial times separately
-        tdat_rad = tdat;
-        tdat_ax = tdat;
-
-        % cut thickness on max/min values - disabled, usually not needed
-        if 0
-            tdat_ax = tdat_ax(axdat>minthresh_ax & axdat<maxthresh_ax);
-            edat_ax = edat_ax(axdat>minthresh_ax & axdat<maxthresh_ax);
-            axdat = axdat(axdat>minthresh_ax & axdat<maxthresh_ax);
+            edat_ax = dat(ii).se_ax(:);
+            edat_rad = dat(ii).fiterrs(:);
+            
+            % cut on fitted center of line profile (if center close to edge of
+            % image it often gives huge diameters with artificially small
+            % errors).
+            if isfield(dat(ii),'linecents')
+                centdat = dat(ii).linecents(:);
+                
+                centind = centdat>centmin & centdat<centmax;
+                tdat = tdat(centind);
+                edat_ax = edat_ax(centind);
+                axdat = axdat(centind);
+                raddat = raddat(centind);
+                edat_rad = edat_rad(centind);
+            end
+            
+            % cut axial and radial times separately
+            tdat_rad = tdat;
+            tdat_ax = tdat;
+            
+            % cut on error in thickness and radius fit
+            if str2double(dat(ii).param.analysis_date) > 201018 % newer format. error using R^2
+                tdat_ax = tdat_ax(edat_ax>errthresh_ax_r2); % R^2
+                axdat = axdat(edat_ax>errthresh_ax_r2); % R^2
+                
+                tdat_rad = tdat_rad(edat_rad>errthresh_rad_r2); % R^2
+                raddat = raddat(edat_rad>errthresh_rad_r2); % R^2
+            else % older format. error using residual squared of norms?
+                tdat_rad = tdat_rad(edat_rad<errthresh_rad); % resnorm
+                raddat = raddat(edat_rad<errthresh_rad); % resnorm
+            end
+        else % old format. data already mostly filtered.
+            tdat_ax = dat(ii).time_ax(:);
+            tdat_rad = tdat;
         end
         
-        % cut on error in thickness fit. data in different formats -
-        % older format was standard error in one parameter fit, new format
-        % is R^2
-        tdat_ax = tdat_ax(edat_ax>errthresh_ax); % R^2
-        axdat = axdat(edat_ax>errthresh_ax); % R^2
-        
-        % cut on error in diameter fit. data in different formats - older
-        % format was residual norm, newer is R^2
-%         tdat_rad = tdat_rad(edat_rad<errthresh_rad); % resnorm
-%         raddat = raddat(edat_rad<errthresh_rad); % resnorm
-        tdat_rad = tdat_rad(edat_rad>errthresh_rad); % R^2
-        raddat = raddat(edat_rad>errthresh_rad); % R^2
- 
         % cut flat ends of traces (lingering intensity, not realy
         % constriction) using first derivative
         d_s = smooth(raddat,5); % smooth factor was 10. now 5 (200515).
@@ -186,7 +189,7 @@ if fit_dat
         box(ax2, 'on')
     end
     
-    diffp=[]; diffl=[]; dax_precons=[]; dax_postcons=[];
+    diffp=[]; diffl=[]; dax_precons=[]; dax_postcons=[]; postcon_num=0;
     for ii = 1:length(dat)
         
         % 1. prepare data for fitting
@@ -255,7 +258,7 @@ if fit_dat
         dat(ii).fitDat.XSq_pre_con = Xsq_pre_con;
         
         % fit post-treatment data
-        if length(dat(ii).postTimeCut) >= 5 && any(dat(ii).postTimeCut <= dat(ii).param.t_cpd+1) % bit shoddy, but should work for now
+        if length(dat(ii).postTimeCut) >= 5 && any(dat(ii).postTimeCut <= dat(ii).param.t_cpd+1) % bit shoddy, but works
             [cfit_post, rn_post, res, fcnp] = fit_constriction_data(dat(ii).postTimeCut, dat(ii).postDiamCut, model);
             
             % calculate goodness-of-fit metrics
@@ -281,25 +284,30 @@ if fit_dat
         dat(ii).fitDat.postRsq = Rsq_post;
         dat(ii).fitDat.postRsq_con = Rsq_post_con;
         dat(ii).fitDat.n_post = n_post;
-        
+
         % partition thickness traces into decondensed and condensed
         if segment_thickness
+            
+            seg_t={}; seg_d={}; clr={}; dur=[];
             if Rsq_pre_con > Rsq_thresh && n_pre>5
+
                 % using state change
                 %         [cond, switchPt, muse] = detectZRcondensation(dax_c, 'MinSpatialDist', 50, 'Statistic', 'std'); % from point change
                 %         dax_cond = [dax_cond; dax_c(cond==1)];
                 %         dax_decond = [dax_decond; dax_c(cond==2)];
                 
                 % using threshold
-                thick_cut = 422; % [nm] mean + 3*sigma for 'condensed' state of wt FtsZ-GFP
-                dax_c_sm = smooth(dax_c, 3);
+%                 thick_cut = 422; % [nm] mean + 3*sigma for 'condensed' state of wt FtsZ-GFP
+%                 thick_cut = 389;% [nm] mean + 2*sigma for 'condensed' state of wt FtsZ-GFP
+                thick_cut = 356;% [nm] mean + 1*sigma for 'condensed' state of wt FtsZ-GFP
+%                 dax_c_sm = smooth(dax_c, 3);
+                dax_c_sm = dax_c;
                 inds = dax_c_sm < thick_cut;
                 trans = inds(1:end-1) - inds(2:end);
                 transind = [0; find(trans==-1); find(trans==1); length(inds)];
                 transind = sort(transind);
                 
                 % segmentation
-                seg_t={}; seg_d={}; clr={}; dur=[];
                 for kk = 1:length(transind)-1
                     seg_t{kk} = tax_c(transind(kk)+1:transind(kk+1));
                     seg_d{kk} = dax_c(transind(kk)+1:transind(kk+1));
@@ -319,17 +327,25 @@ if fit_dat
                 end
                 
                 dat(ii).cond_dur = max([0 dur]);
-
+                
                 allprecons = dat(ii).preTimeCut-cfit_pre(1);
-                allprecons = allprecons(allprecons<=0); % need to be sure there are actually 5 points there to compare
-                if length(allprecons)>=1 && ~isempty(dat(ii).cond_dur) && dat(ii).cond_dur>=1 % condensation for 5 points pre-constriction
+                allprecons = allprecons(allprecons<=0); % need to be sure there are actually points there to compare
+                if length(allprecons)>=1 && ~isempty(dat(ii).cond_dur) && dat(ii).cond_dur>=1 % condensation for 1 point pre-constriction
                     dat(ii).didcond = 1;
-                elseif length(allprecons)>=1 && ~isempty(dat(ii).cond_dur) && dat(ii).cond_dur<1 % no condensation for 5 points pre-constriction (but there were 5 data points)
+                elseif length(allprecons)>=1 && ~isempty(dat(ii).cond_dur) && dat(ii).cond_dur<1 % no condensation for 1 point pre-constriction (but there was 1 data point)
                     dat(ii).didcond = 0;
                 end
                 
+                postcon_num = postcon_num+1;
 %                 dax_precons = [dax_precons; dax_c(tax_c<cfit_pre(1))];
-%                 dax_postcons = [dax_postcons; dax_c(tax_c>=cfit_pre(1))];
+                dax_postcons = [dax_postcons; dax_c(tax_c>=cfit_pre(1))];
+            elseif n_pre>5 && ~isempty(tax_c)
+                transind = [0 tax_c(end)];
+                seg_t{1} = tax_c;
+                seg_d{1} = dax_c;
+                clr{1} = 'b';
+            else
+                transind = 0;
             end
         end
         
@@ -392,7 +408,7 @@ if fit_dat
             
             % plot data post-treatment (if exists)
             if Rsq_post_con > Rsq_thresh && n_post>5
-                plot(ax1, dat(ii).postTimeCut-shift, dat(ii).postDiamCut, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_post'], 'linew', 1)
+%                 plot(ax1, dat(ii).postTimeCut-shift, dat(ii).postDiamCut, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_post'], 'linew', 1)
                 
                 if plot_model
                     tvf = dat(ii).postTimeCut(1):0.1:dat(ii).postTimeCut(end);
@@ -412,7 +428,6 @@ if plot_teff
     for ii = 1:length(dat)
 
         if ~isempty(dat(ii).fitDat) && dat(ii).fitDat.preRsq_con > Rsq_thresh && dat(ii).fitDat.n_pre>5
-%             teff_pre(ii) = dat(ii).fitDat.preFitVals(3)^2 ./ dat(ii).fitDat.preFitVals(2);
             teff_pre = [teff_pre d0^2 ./ dat(ii).fitDat.preFitVals(2)];
             cat_pre = [cat_pre 'Untreated'];
 %         else
@@ -420,7 +435,6 @@ if plot_teff
         end
         
         if ~isempty(dat(ii).fitDat) && dat(ii).fitDat.postRsq_con > Rsq_thresh && dat(ii).fitDat.n_post>5
-%             teff_post(ii) = dat(ii).fitDat.postFitVals(3)^2 ./ dat(ii).fitDat.postFitVals(2);
             teff_post = [teff_post d0^2 ./ dat(ii).fitDat.postFitVals(2)];
             cat_post = [cat_post 'Treated'];
 %         else
@@ -452,16 +466,8 @@ if plot_perturbed
     box on
     
     for ii = 1:length(dat)
-        %         if ~isempty(dat(ii).fitDat) && any(dat(ii).fitDat.time<dat(ii).param.t_cpd) && any(dat(ii).fitDat.time>dat(ii).param.t_cpd)
-        %         if ~isempty(dat(ii).fitDat) && dat(ii).fitDat.time(end)<dat(ii).param.t_cpd
         if any(dat(ii).cuttime<dat(ii).param.t_cpd) && any(dat(ii).cuttime>dat(ii).param.t_cpd)
-            %             if dat(ii).fitDat.constFitChiSq < chiSq_thresh
             plot(dat(ii).cuttime, dat(ii).cutdiams, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num)])
-            %                 plot(dat(ii).fitDat.time-dat(ii).param.t_cpd, dat(ii).fitDat.width, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num)], 'linew', 1)
-            
-            %                 tvf = dat(ii).fitDat.time(1):0.1:dat(ii).fitDat.time(end);
-            %                 plot(tvf-dat(ii).param.t_cpd, dat(ii).fcn(dat(ii).fitDat.constFitVals,tvf), 'k', 'DisplayName', '')
-            %             end
         end
     end
 end
