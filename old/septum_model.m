@@ -9,16 +9,17 @@ function im_model = septum_model(mu, R, W, theta, amp, ring_grad, psfFWHM, pixSz
 
 if nargin==0
     mu = [20 20];
-    R = 6; % [pix]
-    W = 1; % [pix] width of Z ring
-    theta = -pi/3; % note that -pi/4 is a discontinuity. seems to work fine anyway.
+    R = .5; % [pix]
+    W = .5; % [pix] width of Z ring
+    theta = pi/3; % note that -pi/4 is a discontinuity. seems to work fine anyway.
     amp = 1;
     ring_grad = 0;
     psfFWHM = 250;
     pixSz = 65;
-    range = 1:1:35;
+    sp = 0.01;
+    range = 1:sp:35;
 end
-sp = range(2)-range(1);
+% sp = range(2)-range(1);
 
 X0 = mu(1);
 Y0 = mu(2);
@@ -49,8 +50,8 @@ ring_prof = abs(arcl_ip1 - arcl_i); % Delta(arc length)
 ring_prof(abs(ax1_ipm)>R | abs(ax2_ipm)>W) = 0;
 
 % change to real pixel size and blur based on psf FWHM.
-% ring_prof = imresize(ring_prof, [range(end) range(end)]);
 ring_prof = imgaussfilt(ring_prof,sigma/sp);
+ring_prof = imresize(ring_prof, [range(end) range(end)]);
 
 ring_prof_scale = ring_prof/sum(ring_prof(:));
 ring_prof_scale = amp*ring_prof_scale;

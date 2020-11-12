@@ -24,4 +24,4 @@ prof_model = downsample(prof_model, uint8(1/sp)); % same number of points as ima
 
 diff = prof_im - prof_model;
 
-obj = sum(sum(diff.^2));
+obj = sum(diff.^2);

@@ -15,7 +15,7 @@ switch model
         fcn = @(a,t) a(3).*heaviside(a(1)-t) + real(heaviside(t-a(1)).*sqrt(a(3)^2 - a(2)*(t-a(1))));
         b0 = [(tdat(end)-tdat(1))/2 1e4 900]; % new
 %         lb = [tdat(1) 5e3 900];
-        lb = [tdat(1)-50 5e3 700];
+        lb = [tdat(1)-50 5e3 600];
         ub = [tdat(end) 3e5 1300];
     case 'logistic'
         nt = @(a,t) (t + 1/a(1)*log(abs((1+exp(-a(1)*(t-a(2))))/(1+exp(a(1)*a(2)))))); % total synthase activity over time (integral of generic logistic function)
