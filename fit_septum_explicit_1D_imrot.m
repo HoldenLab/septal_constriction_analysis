@@ -110,6 +110,10 @@ for ii = 1:size(imstack,3)
     % cropped edges will be artificially filled in with bilinear
     % interpolation (fake signal).
     rotim = imrotate(frame, theta*180/pi);
+    if plot_im
+        hold(h_im, 'off')
+        imagesc(h_im, rotim)
+    end
     
     % find new center of septum (moves after imrotate operation)
     Rz = rotz(-theta*180/pi); % don't know why it needs to be -theta, but it does
