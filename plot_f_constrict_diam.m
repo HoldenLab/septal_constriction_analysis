@@ -26,12 +26,12 @@ plot_f_con_vs_2Bintensity = 0; % vs. PBP2B intensity
 plot_f_con_vs_Zintensity = 0; % vs. FtsZ intensity
 plot_f_con_manualclass = 0; % vs. division stage, manually classified (column 13)
 plot_f_con_autoclass = 0; % vs. division stage, automatically classified by diameter and thickness
-plot_f_con_2Bint_norm = 1; % vs. low/high PBP2B intensity (normalized if possible)
+plot_f_con_2Bint_norm = 0; % vs. low/high PBP2B intensity (normalized if possible)
 plot_f_con_Zint_norm = 0; % vs. low/high FtsZ intensity (normalized if possible)
 
 % make scatter plots of various properties and whether septa continued
 % division post-treatment
-plot_scatter_diameter_thickness = 0; % septal diameter vs. thickness
+plot_scatter_diameter_thickness = 1; % septal diameter vs. thickness
 plot_scatter_diameter_2Bintensity = 0; % septal diameter vs. PBP2B intensity (normalized if possible)
 plot_scatter_diameter_Zintensity = 0; % septal diameter vs. FtsZ intensity (normalized if possible)
 plot_scatter_2Bintensity_Zintensity = 0; % PBP2B intensity vs. FtsZ intensity (both normalized if possible)
@@ -42,7 +42,7 @@ plot_scatter_diameter_thickness_condense = 0; % make scatter plot of septal diam
 plot_f_low2B_increase = 0; % make stacked bar plot of % septa where low PBP2B signal increased post-treatment
 
 ud.use_relative_diameter = 1; % use relative septal diameter (otherwise use absolute)
-ud.is_2color = 1; % is this the 2-color strain?
+ud.is_2color = 0; % is this the 2-color strain?
 
 if ud.is_2color
     thickness_thresh = 450; % [nm] 2-color (poor SNR)
@@ -56,10 +56,16 @@ sig_cent = nanstd(dat(:,5));
 ud.cent_cut = [cent-2*sig_cent cent+2*sig_cent]; % [pix] cut on fitted center of line profile (if off-center, likely did not fit whole ring)
 % ud.diam_cut = [700 1200] /65/2; % [pix] cut on radial diameter
 ud.diam_cut = [0 Inf] /65/2; % [pix] cut on radial diameter
-ud.diam_err_cut = [0 0.7]; % cut on radial fitting error
+
+ud.diam_err_cut = [0.7 1]; % cut on radial fitting error. Using R^2 (after 201018)
+ud.thick_err_cut = [0.7 1]; % cut on error in fitting for axial diameters. Using R^2 (after 201018)
+
+% ud.diam_err_cut = [0 0.7]; % cut on radial fitting error. Using residual norm (before 201018)
+% ud.thick_err_cut = [0 1]; % cut on error in fitting for axial diameters. Using error in one fit parameter (before 201018)
+
 % ud.thick_cut = [0 thickness_thresh] /65; % [pix] cut on axial width
 ud.thick_cut = [0 Inf] /65; % [pix] cut on axial width
-ud.thick_err_cut = [0 1]; % cut on error in fitting for axial diameters
+
 ud.int_2b_cut = [0 Inf]; % cut on 2B intensity
 ud.class_cut = [0 Inf]; % cut on classification
 ud.int_Z_cut = [0 Inf]; % cut on Z intensity
@@ -70,20 +76,20 @@ else
     radcut = 700;
 end
 
-% Add relative septal diameters to data matrix based on each individual d0
-% (column 9, if available)
-if ud.use_relative_diameter
-    lastcol = size(dat,2) + 1; % add a new column to data matrix to put in relative diameters
-    dat(:,lastcol) = dat(:,6) ./ dat(:,9); % relative diameters
-    dat(dat(:,lastcol)==Inf,lastcol) = 1; % If nascent ring diameter=0, must be a nascent ring. this is max diameter.
-end
-
 % replace intensities with normalized intensities (per uW excitation power)
 if size(dat,2)>15 && any(dat(:,16))
     dat(:,14) = dat(:,14) ./ dat(:,16); % normalized intensities of FtsZ
 end
 if size(dat,2)>14 && any(dat(:,15))
     dat(:,12) = dat(:,12) ./ dat(:,15); % normalized intensities of PBP2B
+end
+
+% Add relative septal diameters to data matrix based on each individual d0
+% (column 9, if available)
+if ud.use_relative_diameter
+    lastcol = size(dat,2) + 1; % add a new column to data matrix to put in relative diameters
+    dat(:,lastcol) = dat(:,6) ./ dat(:,9); % relative diameters
+    dat(dat(:,lastcol)==Inf,lastcol) = 1; % If nascent ring diameter=0, must be a nascent ring. this is max diameter.
 end
 
 % Filter data
@@ -396,7 +402,7 @@ end
 if plot_f_con_2Bint_norm
 
     if ud.is_2color
-        int_cut = 0.15; % 2-color (poor SNR)
+        int_cut = 0.5; % 2-color (poor SNR)
     else
         int_cut = 0.1; % 1-color
     end
@@ -455,10 +461,10 @@ end
 
 if plot_f_con_Zint_norm
 
-    low_range = [0 1.2]; % low Z signal
+    low_range = [0 3.5]; % low Z signal
     cutdat_low = cutmat(dat, 14, low_range);
     
-    high_range = [1.2 1e5]; % high Z signal
+    high_range = [3.5 1e5]; % high Z signal
     cutdat_high = cutmat(dat, 14, high_range);
     
     fcon=[]; se_fcon=[];
@@ -509,8 +515,8 @@ end
 
 if plot_scatter_diameter_thickness
     
-    yups = dat(dat(:,8)==1,:); % continued division
-    nopes = dat(dat(:,8)==0,:); % did not continue division
+    yups = dat(dat(:,8)==1,:); % constricted
+    nopes = dat(dat(:,8)==0,:); % did not constrict
     
     figure
     hold on
@@ -541,8 +547,8 @@ end
 
 if plot_scatter_diameter_2Bintensity
 
-    yups = dat(dat(:,8)==1,:); % continued division
-    nopes = dat(dat(:,8)==0,:); % did not continue division
+    yups = dat(dat(:,8)==1,:); % constricted
+    nopes = dat(dat(:,8)==0,:); % did not constrict
     
     figure
     hold on
@@ -569,8 +575,8 @@ end
 
 if plot_scatter_diameter_Zintensity
     
-    yups = dat(dat(:,8)==1,:); % continued division
-    nopes = dat(dat(:,8)==0,:); % did not continue division
+    yups = dat(dat(:,8)==1,:); % constricted
+    nopes = dat(dat(:,8)==0,:); % did not constrict
     
     figure
     hold on
@@ -597,8 +603,8 @@ end
 
 if plot_scatter_2Bintensity_Zintensity
     
-    yups = dat(dat(:,8)==1,:); % continued division
-    nopes = dat(dat(:,8)==0,:); % did not continue division
+    yups = dat(dat(:,8)==1,:); % constricted
+    nopes = dat(dat(:,8)==0,:); % did not constrict
     
     figure
     hold on
