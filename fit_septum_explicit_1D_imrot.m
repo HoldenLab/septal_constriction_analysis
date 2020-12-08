@@ -10,24 +10,22 @@ blobedge = 520; % [nm] for cutting out assuming a square. This value seems to wo
 blobarea_pix = blobedge^2 / param.pixSz^2; % [pix^2]
 
 r0 = 2000 / 2 / param.pixSz; % [pix] half of line length for profile. updated 200217
-ybox = floor(325 / 2 / param.pixSz); % [pix] width of septum for line profile
+ybox = floor(500 / 2 / param.pixSz); % [pix] width of septum for line profile
 xbox = floor(1000 / 2 / param.pixSz); % [pix] width of septum for axial line profile. also the name of a popular game console.
+r0r = floor(1500 / 2 / param.pixSz); % [pix] half of line length for profile.
+r0ax = floor(2000 / 2 / param.pixSz); % [pix] half of line length for profile.
 
 if plot_im
     figure('Position',[1100 450 400 300])
     h_im = gca;
-%     hIm0=figure;
-%     hIm1=figure;
 end
 if param.plot_gauss
     figure('Position',[700 450 400 300])
     h_gauss = gca;
 end
-
 if param.plot_explicit
     figure('Position',[700 50 400 300])
     h_exp = gca;
-%     hRawInt = figure;
 end
 
 improf=[]; orthprof=[]; fitvals=[]; fitvals_ax=[];
@@ -109,6 +107,7 @@ for ii = 1:size(imstack,3)
     % nearest-neighbor interpolation rather than bilinear because black,
     % cropped edges will be artificially filled in with bilinear
     % interpolation (fake signal).
+%     theta = theta + pi/2; % HACK!!!!!
     rotim = imrotate(frame, theta*180/pi);
     if plot_im
         hold(h_im, 'off')
@@ -123,8 +122,10 @@ for ii = 1:size(imstack,3)
     xy0r = round(xy0r); % image is discrete pixels - need integer values
 
     % crop image to a thin rectangle along septal axis
-    yrange = max([1 xy0r(2)-ybox]):min([size(rotim,1) xy0r(2)+ybox]);
-    sepim = rotim(yrange, :); % crop - only image of septum +/- a few pixels
+    yrange_sepim = max([1 xy0r(2)-ybox]):min([size(rotim,1) xy0r(2)+ybox]);
+    xrange_sepim = max([1 xy0r(1)-r0r]):min([size(rotim,1) xy0r(1)+r0r]);
+    sepim = rotim(yrange_sepim, :); % crop - only image of septum +/- a few pixels
+%     sepim = rotim(yrange_sepim, xrange_sepim); % crop - only image of septum +/- a few pixels
     sepim(sepim==0) = NaN; % zeros are from rotation, and are artificial
     
     % take average of all line profiles across septal axis
@@ -179,7 +180,6 @@ for ii = 1:size(imstack,3)
     
     imp = improf(ii,~isnan(improf(ii,:)));
     imp_proc = (imp-min(imp));
-%     imp_sub = imp_proc;
     imp_proc = imp_proc/max(imp_proc);
     [pks, locs] = findpeaks(imp_proc);
     pkmat = [pks' locs'];
@@ -190,12 +190,12 @@ for ii = 1:size(imstack,3)
         initwidth = 3;
     end
     initguess = [length(imp)/2+1 initwidth];
-%     initguess = [length(imp)/2+1 initwidth max(imp_sub)];
     options = optimset('Display', 'off');
 %     range = 1:0.1:length(imp);
     range = 0.5:0.1:length(imp)+0.5;
-%     [fitex, fval] = fminsearch(@(x)septum_1D_obj_amp(imp_sub,x,range,param), initguess, options);
+%     [fitex, fval] = fminsearch(@(x)septum_1D_obj_amp(imp,x,range,param), initguess, options);
     [fitex, fval] = fminsearch(@(x)septum_1D_obj(imp_proc,x,range,param), initguess, options);
+%     [fitex, fval] = fmincon(@(x)septum_1D_obj(imp_proc,x,range,param), initguess, [],[],[],[],[0 0],[Inf Inf]);
     
     fitvals(ii,:) = [fitex fval];
     
@@ -258,8 +258,8 @@ for ii = 1:size(imstack,3)
 
     end
     
-    fitvals_ax(ii,:) = [FWHM_ax se_ax(2)];
-%     fitvals_ax(ii,:) = [FWHM_ax Rsq];
+%     fitvals_ax(ii,:) = [FWHM_ax se_ax(2)];
+    fitvals_ax(ii,:) = [FWHM_ax Rsq];
     
     %% Plot image with septal and axial axes
     

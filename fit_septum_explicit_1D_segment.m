@@ -6,17 +6,14 @@
 
 function [improf, orthprof, fitvals, fitvals_ax] = fit_septum_explicit_1D_segment(imstack, plot_im, param, xy0, olaystack_cropped)
 
-plot_gauss = param.plot_gauss;
-plot_explicit = param.plot_explicit;
-
 blobedge = 520; % [nm] for cutting out assuming a square. This value seems to work well. Updated 200217
 blobarea_pix = blobedge^2 / param.pixSz^2; % [pix^2]
 
-%r0 = 2000 / 2 / param.pixSz; % [pix] half of line length for profile. updated 200217
-r0r = floor(1500 / 2 / param.pixSz); % [pix] half of line length for profile.
-r0ax = floor(2000 / 2 / param.pixSz); % [pix] half of line length for profile.
+r0 = 2000 / 2 / param.pixSz; % [pix] half of line length for profile. updated 200217
 ybox = floor(500 / 2 / param.pixSz); % [pix] width of septum for line profile
 xbox = floor(1000 / 2 / param.pixSz); % [pix] width of septum for axial line profile. also the name of a popular game console.
+r0r = floor(1500 / 2 / param.pixSz); % [pix] half of line length for profile.
+r0ax = floor(2000 / 2 / param.pixSz); % [pix] half of line length for profile.
 
 if plot_im
     figure('Position',[1100 450 400 300])
@@ -99,7 +96,7 @@ for ii = 1:size(imstack,3)
     if isnan(theta(ii))
         improf(ii,:) = ones(1,size(improf,2))*NaN;
         orthprof(ii,:) = ones(size(orthprof,2),1)*NaN;
-        fitvals(ii,:) = [NaN NaN NaN NaN];
+        fitvals(ii,:) = [NaN NaN NaN];
         fitvals_ax(ii,:) = [NaN NaN];
         continue
     end
@@ -154,10 +151,11 @@ for ii = 1:size(imstack,3)
     yrange_sepim = max([1 xy0r(2)-ybox]):min([size(rotim,1) xy0r(2)+ybox]);
     xrange_sepim = max([1 xy0r(1)-r0r]):min([size(rotim,1) xy0r(1)+r0r]);
     sepim = rotim(yrange_sepim, xrange_sepim); % crop - only image of septum +/- a few pixels
+%     sepim = rotim(yrange_sepim, :); % crop - only image of septum +/- a few pixels
     sepim(sepim==0) = NaN; % zeros are from rotation, and are artificial
     
-    %ip = nanmean(sepim,1);
-    ip = nansum(sepim,1);
+    ip = nanmean(sepim,1);
+%     ip = nansum(sepim,1);
     
     % pad ip or improf with NaNs if necessary
     if ~isempty(improf) && length(ip)>length(improf(end,:))
@@ -181,8 +179,8 @@ for ii = 1:size(imstack,3)
     axim = rotim(yrange_axim, xrange_axim); % crop - only image of septum +/- a few pixels
     axim(axim==0) = NaN; % zeros are from rotation, and are artificial
     
-    %ip_orth = nanmean(axim,2)';
-    ip_orth = nansum(axim,2)';
+    ip_orth = nanmean(axim,2)';
+%     ip_orth = nansum(axim,2)';
     
     % pad ip_orth or orthprof with NaNs if necessary
     if ~isempty(orthprof) && size(ip_orth,2)>size(orthprof,2)
@@ -219,7 +217,8 @@ for ii = 1:size(imstack,3)
     else
         initwidth = 3;
     end
-    initguess = [length(imp)/2+1 initwidth max(imp_proc)];
+%     initguess = [length(imp)/2+1 initwidth max(imp_proc)];
+    initguess = [length(imp)/2+1 initwidth];
     options = optimset('Display', 'off');
     range = 1:0.1:length(imp);
     [fitex, fval] = fminsearch(@(x)septum_1D_objZ(imp_proc,x,range,param), initguess, options);
@@ -230,7 +229,8 @@ for ii = 1:size(imstack,3)
          halfrange = range - (range(2)-range(1))/2;
          plot(h_exp, imp_proc)
          hold(h_exp, 'on')
-         plot(h_exp, halfrange, septum_model_1DZ(fitvals(ii,1),fitvals(ii,2),250,65,range, fitvals(ii,3)));
+%          plot(h_exp, halfrange, septum_model_1DZ(fitvals(ii,1),fitvals(ii,2),250,65,range, fitvals(ii,3)));
+         plot(h_exp, halfrange, septum_model_1DZ(fitvals(ii,1),fitvals(ii,2),250,65,range));
 %          figure(hRawInt);
 %          plot(imp);
 %          ylabel('raw intensity')
@@ -272,16 +272,17 @@ for ii = 1:size(imstack,3)
         x = 1:h;
         
         if param.plot_gauss
-            plot(h_gauss, linep_ax_proc)
+            plot(h_gauss, linep_ax)
             hold(h_gauss, 'on')
         end
 
         initwidth = 5;
-        initguess = [mean(x), initwidth, 1,1,0];
+        initguess = [mean(x), initwidth, 1, max(linep_ax), 0];
         options = optimoptions('lsqcurvefit', 'Display', 'off');
-        lb = [0 0 0.5 0 0];
-        [a, rn, res, ~, ~, ~, J] = lsqcurvefit(superGaussian, initguess, x, linep_ax_proc, lb, [], options);
-        sst = sum((linep_ax_proc - mean(linep_ax_proc)).^2);
+        lb = [0 0 1 0 0];
+%         [a, rn, res, ~, ~, ~, J] = lsqcurvefit(superGaussian, initguess, x, linep_ax_proc, lb, [], options);
+        [a, rn, res, ~, ~, ~, J] = lsqcurvefit(superGaussian, initguess, x, linep_ax, lb, [], options);
+        sst = sum((linep_ax - mean(linep_ax)).^2);
         Rsq = 1 - rn/sst;
         
         [~, se_ax] = nlparci2(a, real(res), 'Jacobian', real(J));
@@ -302,7 +303,8 @@ for ii = 1:size(imstack,3)
 
     end
     
-    fitvals_ax(ii,:) = [FWHM_ax se_ax(2)];
+%     fitvals_ax(ii,:) = [FWHM_ax se_ax(2)];
+    fitvals_ax(ii,:) = [FWHM_ax Rsq];
     
     %% Plot image with septal and axial axes
     
@@ -335,11 +337,12 @@ end
 mu = guess(1);
 R = guess(2);
 % ring_grad = guess(3);
-amp = guess(3);
+% amp = guess(3);
 psfFWHM = param.psfFWHM;
 pixSz = param.pixSz;
 
-prof_model = septum_model_1DZ(mu, R, psfFWHM, pixSz, range,amp);
+% prof_model = septum_model_1DZ(mu, R, psfFWHM, pixSz, range,amp);
+prof_model = septum_model_1DZ(mu, R, psfFWHM, pixSz, range);
 
 sp = range(2)-range(1); % spacing
 prof_model = downsample(prof_model, uint8(1/sp)); % same number of points as image profile
@@ -354,7 +357,8 @@ obj = sum(sum(diff.^2));
 % This function produces a line profile of a septum using an explicit
 % 'tilted circle' model.
 
-function improf = septum_model_1DZ(X0, R, psfFWHM, pixSz, X,amp)
+% function improf = septum_model_1DZ(X0, R, psfFWHM, pixSz, X,amp)
+function improf = septum_model_1DZ(X0, R, psfFWHM, pixSz, X)
 
 if nargin==0
     X0 = 13.1;
@@ -387,7 +391,8 @@ ring_prof = ring_prof(floor(length(gauss)/2):floor((end-length(gauss)/2))+1); % 
 
 ring_prof_scale = ring_prof/max(ring_prof(:));
 
-improf = ring_prof_scale*amp;
+% improf = ring_prof_scale*amp;
+improf = ring_prof_scale;
 
 if nargin==0
     figure

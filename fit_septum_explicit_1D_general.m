@@ -13,7 +13,7 @@ r0 = 2000 / 2 / param.pixSz; % [pix] half of line length for profile. updated 20
 ybox = floor(500 / 2 / param.pixSz); % [pix] width of septum for line profile
 xbox = floor(1000 / 2 / param.pixSz); % [pix] width of septum for axial line profile. also the name of a popular game console.
 r0r = floor(1500 / 2 / param.pixSz); % [pix] half of line length for profile.
-r0ax = floor(2000 / 2 / param.pixSz); % [pix] half of line length for profile.
+r0ax = floor(1200 / 2 / param.pixSz); % [pix] half of line length for profile.
 
 if plot_im
     figure('Position',[1100 450 400 300])
@@ -177,7 +177,8 @@ for ii = 1:size(imstack,3)
     
     xrange_axim = max([1 xy0r(1)-xbox]):min([size(rotim,2) xy0r(1)+xbox]);
     yrange_axim = max([1 xy0r(2)-r0ax]):min([size(rotim,2) xy0r(2)+r0ax]);
-    axim = rotim(:, xrange_axim); % crop - only image of septum +/- a few pixels
+%     axim = rotim(:, xrange_axim); % crop - only image of septum +/- a few pixels
+    axim = rotim(yrange_axim, xrange_axim); % crop - only image of septum +/- a few pixels. Updated 201029 to have yrange_axim
     axim(axim==0) = NaN; % zeros are from rotation, and are artificial
     
     ip_orth = nanmean(axim,2)';
@@ -208,17 +209,20 @@ for ii = 1:size(imstack,3)
     end
     
     imp = improf(ii,~isnan(improf(ii,:)));
-%     imp_proc = (imp-min(imp));
-%     imp_proc = imp_proc/max(imp_proc);
-    imp_proc = imp;
+    imp_proc = (imp-min(imp));
+    imp_proc = imp_proc/max(imp_proc);
+    
     [pks, locs] = findpeaks(imp_proc);
     pkmat = [pks' locs'];
     pkmat = sortrows(pkmat);
     if size(pkmat,1)>1 && pkmat(end,1)-pkmat(end-1,1)<0.9
         initwidth = abs((pkmat(end,2)-pkmat(end-1,2))/1.5);
     else
-        initwidth = 3;
+        initwidth = 5;
     end
+    
+    imp_proc = imp;
+    
 %     initguess = [length(imp)/2+1 initwidth];
     initguess = [length(imp)/2+1 initwidth min(imp) max(imp)];
     options = optimset('Display', 'off');
@@ -228,10 +232,13 @@ for ii = 1:size(imstack,3)
 %     [fitex, fval] = fminsearch(@(x)septum_1D_obj(imp_proc,x,range,param), initguess, options);
 %     [fitex, fval] = fmincon(@(x)septum_1D_obj(imp_proc,x,range,param), initguess, [],[],[],[],[0 0],[Inf Inf]);
 
+%     range = 1:0.01:length(imp);
+%     [fitex, fval] = fminsearch(@(x)septum_1D_obj_cont(imp,x,range,param), initguess, options);
+
     sst_rad = sum((imp - mean(imp)).^2);
     Rsq_rad = 1 - fval/sst_rad;
     
-%     fitvals(ii,:) = [fitex(1) fitex(2) fval];
+%     fitvals(ii,:) = [fitex(1) fitex(2) fval]; % changed back 201028
     fitvals(ii,:) = [fitex(1) fitex(2) Rsq_rad];
     
     if param.plot_explicit
@@ -239,7 +246,8 @@ for ii = 1:size(imstack,3)
         plot(h_exp, (range(1):length(imp_proc))-fitex(1), imp_proc)
         hold(h_exp, 'on')
 
-        plot(h_exp, range(1:end-1)-fitex(1), septum_model_1D_amp(fitvals(ii,1),fitvals(ii,2),param.psfFWHM,param.pixSz,range,fitvals(ii,3),fitvals(ii,4)))
+        plot(h_exp, range(1:end-1)-fitex(1), septum_model_1D_amp(fitex(1),fitex(2),param.psfFWHM,param.pixSz,range,fitex(3),fitex(4)))
+%         plot(h_exp, range-fitex(1), septum_model_1D_cont(fitex(1),fitex(2),param.psfFWHM,param.pixSz,range,fitex(3),fitex(4)))
 %         plot(h_exp, range(1:end-1)-fitex(1), septum_model_1D(fitvals(ii,1),fitvals(ii,2),param.psfFWHM,param.pixSz,range))
 %         figure(hRawInt);
 %         plot(imp);
@@ -291,7 +299,7 @@ for ii = 1:size(imstack,3)
             plot(h_gauss, (range(1):length(linep_ax)), linep_ax)
             hold(h_gauss, 'on')
             tv = x(1):(x(2)-x(1))/10:x(end);
-            plot(h_gauss, tv-fitax(1), superGaussian(a,tv))
+            plot(h_gauss, tv, superGaussian(a,tv))
 %             plot(h_gauss, range(1:end-1)-fitax(1), septum_thickness_model_1D_amp(fitax(1),fitax(2),param.psfFWHM,param.pixSz,range,fitax(3),fitax(4)))
         end
 
