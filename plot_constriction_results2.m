@@ -18,11 +18,11 @@ segment_thickness = 0; % segment thickness traces
 d0 = 1100; % fix d0 for calculating teff. updated 200625.
 
 plot_unfitted_dat = 0; % plot data traces - filtered or raw
-plot_fitted_dat = 0; % plot processed traces with fitted model
+plot_fitted_dat = 1; % plot processed traces with fitted model
     alignment = 't0'; % align fitted traces. 't0' = constriction start time, 'tcpd' = compound arrival time
     plot_model = 0; % plot fitted constriction model on top of traces
     
-plot_teff = 1; % make violin plots of effective constriction time (teff)
+plot_teff = 0; % make violin plots of effective constriction time (teff)
 plot_perturbed = 0; % plot only traces where data was recorded DURING drug treatment
 plot_intensity = 0; % plot septal intensities over time
 
@@ -73,6 +73,7 @@ if filter_dat
         tdat = dat(ii).time(:);
         axdat = dat(ii).FWHM_ax(:);
         raddat = dat(ii).diam(:);
+        ints = dat(ii).intensity(:);
         
         if str2double(dat(ii).param.analysis_date) > 200321 % new format. data starts unfiltered.
             
@@ -91,6 +92,7 @@ if filter_dat
                 axdat = axdat(centind);
                 raddat = raddat(centind);
                 edat_rad = edat_rad(centind);
+                ints = ints(centind);
             end
             
             % cut axial and radial times separately
@@ -104,9 +106,11 @@ if filter_dat
                 
                 tdat_rad = tdat_rad(edat_rad>errthresh_rad_r2); % R^2
                 raddat = raddat(edat_rad>errthresh_rad_r2); % R^2
+                ints = ints(edat_rad>errthresh_rad_r2);
             else % older format. error using residual squared of norms?
                 tdat_rad = tdat_rad(edat_rad<errthresh_rad); % resnorm
                 raddat = raddat(edat_rad<errthresh_rad); % resnorm
+                ints = ints(edat_rad<errthresh_rad);
             end
         else % old format. data already mostly filtered.
             tdat_ax = dat(ii).time_ax(:);
@@ -125,6 +129,7 @@ if filter_dat
         
         tdat_rad_c = tdat_rad(1:indx); % cut times (flat ends removed)
         raddat_c = raddat(1:indx); % cut diameters
+        ints_c = ints(1:indx); % cut intensities
         if ~isempty(tdat_rad_c)
             tdat_ax_c = tdat_ax(tdat_ax<tdat_rad_c(end));
             axdat_c = axdat(tdat_ax<tdat_rad_c(end));
@@ -134,6 +139,7 @@ if filter_dat
         dat(ii).cutdiams_ax = axdat_c;
         dat(ii).cuttime = tdat_rad_c;
         dat(ii).cutdiams = raddat_c;
+        dat(ii).cutint = ints_c;
     end
 else
     for ii = 1:length(dat)
@@ -141,6 +147,7 @@ else
         dat(ii).cutdiams_ax = dat(ii).FWHM_ax(~isnan(dat(ii).FWHM_ax));
         dat(ii).cuttime = dat(ii).time(~isnan(dat(ii).diam));
         dat(ii).cutdiams = dat(ii).diam(~isnan(dat(ii).diam));
+        dat(ii).cutint = dat(ii).intensity(~isnan(dat(ii).intensity));
     end
 end
 
@@ -181,12 +188,15 @@ if fit_dat
     
     if plot_fitted_dat
         figure('FileName', [path '/' today '_fit_dat.fig'])
-        ax1 = subplot(211);
+        ax1 = subplot(311);
         hold(ax1, 'on')
         box(ax1, 'on')
-        ax2 = subplot(212);
+        ax2 = subplot(312);
         hold(ax2, 'on')
         box(ax2, 'on')
+        ax3 = subplot(313);
+        hold(ax3, 'on')
+        box(ax3, 'on')
     end
     
     diffp=[]; diffl=[]; dax_precons=[]; dax_postcons=[]; postcon_num=0;
@@ -367,18 +377,22 @@ if fit_dat
                 
                 % plot diameters, shifted by either treatment time or
                 % constriction start time
-                plot(ax1, dat(ii).preTimeCut-shift, dat(ii).preDiamCut, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre'], 'linew', 1)
+                plot(ax1, dat(ii).preTimeCut-shift, dat(ii).preDiamCut, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre'])
                 
                 if plot_model
                     tvf = dat(ii).preTimeCut(1):0.1:dat(ii).preTimeCut(end);
                     plot(ax1, tvf-shift, fcnp(cfit_pre,tvf), 'k', 'DisplayName', '')
                 end
                 
+                circ = dat(ii).cutdiams*pi; % circumferences
+            
+                plot(ax2, dat(ii).cuttime-shift, dat(ii).cutint./circ, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre']) % density
+                
                 if segment_thickness
                     % plot segmented thickness traces
                     for kk = 1:length(transind)-1
                         if ~isempty(tax_c)
-                            plot(ax2, seg_t{kk}-shift, seg_d{kk}, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre'], 'linew', 1, 'Color', clr{kk})
+                            plot(ax3, seg_t{kk}-shift, seg_d{kk}, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre'], 'Color', clr{kk})
                             %                     hold(ax2,'on')
                         end
                     end
@@ -388,7 +402,7 @@ if fit_dat
                 %                 plot(ax2, tax_c(cond==2)-shift, dax_c(cond==2), 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre'], 'linew', 1, 'Color', 'r')
                 %                 plot(ax2, tax_decond-shift, dax_decond, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre'], 'linew', 1, 'Color', 'r')
                 else
-                    plot(ax2, tax_c-shift, dax_c, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre'], 'linew', 1)
+                    plot(ax3, tax_c-shift, dax_c, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre'])
                 end
 
                 % calculate difference between 2B disappearance time and
@@ -505,15 +519,18 @@ if plot_intensity
         
 %         if any(dat(ii).cuttime>dat(ii).param.t_cpd) && ~isempty(dat(ii).fitDat.postFitVals) && dat(ii).fitDat.postRsq_con > Rsq_thresh && dat(ii).fitDat.n_post>5 % only after
 %         if any(dat(ii).cuttime>dat(ii).param.t_cpd) && any(dat(ii).cuttime>dat(ii).param.t_cpd) && isempty(dat(ii).fitDat.postFitVals) && ~any(dat(ii).cutdiams<700)% only after, raw data
-        if any(dat(ii).cuttime==dat(ii).param.t_cpd) && dat(ii).cutdiams(dat(ii).cuttime==dat(ii).param.t_cpd)>900 % only after, mature rings only
+%         if any(dat(ii).cuttime==dat(ii).param.t_cpd) && dat(ii).cutdiams(dat(ii).cuttime==dat(ii).param.t_cpd)>900 % only after, mature rings only
+        if dat(ii).cutdiams(dat(ii).cuttime==dat(ii).param.t_cpd)>900 % only after, mature rings only
             
 %             plot(dat(ii).cuttime-dat(ii).fitDat.postFitVals(1), dat(ii).cutint, ...
 %                 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num)]) % post aligned by constriction time
 
-            plot(g2, dat(ii).cuttime-dat(ii).param.t_cpd, dat(ii).cutdiams, ...
+            plot(g2, dat(ii).cuttime-dat(ii).fitDat.preFitVals(1), dat(ii).cutdiams, ...
                 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num)]) % post aligned by treatment time
             
-            plot(h2, dat(ii).cuttime-dat(ii).param.t_cpd, dat(ii).cutint, ...
+            circ = dat(ii).cutdiams*pi; % circumferences
+            
+            plot(h2, dat(ii).cuttime-dat(ii).fitDat.preFitVals(1), dat(ii).cutint./circ, ...
                 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num)]) % post aligned by treatment time
 
 %             concut = dat(ii).cuttime<=dat(ii).fitDat.postFitVals(1) & dat(ii).fitDat.postFitVals(1)>=dat(ii).param.t_cpd; % only pre-constricted post-treatment
