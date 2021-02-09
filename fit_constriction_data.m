@@ -14,7 +14,6 @@ switch model
     case 'parabolic'
         fcn = @(a,t) a(3).*heaviside(a(1)-t) + real(heaviside(t-a(1)).*sqrt(a(3)^2 - a(2)*(t-a(1))));
         b0 = [(tdat(end)-tdat(1))/2+tdat(1) 1e4 650]; % fixed 210119
-%         lb = [tdat(1) 5e3 900];
         lb = [tdat(1)-50 5e3 600];
         ub = [tdat(end) 3e5 1300];
         
