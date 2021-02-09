@@ -14,9 +14,12 @@ ud.filter_dat = 1; % filter data based on fitting error, etc.
     ud.err_thresh_thick_R2 = 0.90; % thickness error threshold. error is R^2
     ud.err_thresh_diam_R2 = 0.90; % diameter error threshold. error is R^2 (new format)
     ud.err_thresh_diam = 1.1; % diameter error threshold. error is residual norm (old format)
-ud.fit_dat = 1; % process and fit data to selected model for constriction
+    
+ud.fit_constriction = 1; % process and fit data to selected model for constriction
     ud.model = 'parabolic'; % constriction model to use
     ud.err_thresh_constriction_R2 = 0.8; % R^2 threshold for data to be plotted. also threshold for fitted values to be included in teff violin plots.
+    ud.compare_linear_fit = 0; % compare ud.model to linear fit of constriction data
+    
 ud.segment_thickness = 1; % segment thickness traces
     ud.state_change = 1; % use state change to segment thicknesses.
 
@@ -191,20 +194,9 @@ if plot_unfitted_dat
     set(gcf, 'UserData', ud)
 end
 
-%% Process and fit data to selected model for constriction
-if ud.fit_dat
-    
-    if plot_fitted_dat
-        figure('FileName', [path '/' datestr(now,'yymmdd') '_fit_dat.fig'])
-        ax1 = subplot(211);
-        hold(ax1, 'on')
-        box(ax1, 'on')
-        ax2 = subplot(212);
-        hold(ax2, 'on')
-        box(ax2, 'on')
-    end
-    
-    diffp=[]; diffl=[]; dax_precons=[]; dax_postcons=[]; postcon_num=0; precons_decond=[]; precons_cond=[]; std_precons=[];
+%% Fit constriction model to diameter trajectories
+if ud.fit_constriction
+
     for ii = 1:length(dat)
         
         % 1. prepare data for fitting
@@ -234,12 +226,12 @@ if ud.fit_dat
             dat(ii).postDiamCut = d_fit(t_fit>=dat(ii).param.t_cpd);
         end
         
-        % 2. fit the data
+        % 2. fit the diameter trajectories to constriction model
         
         % fit pre-treatment data
         if length(dat(ii).preTimeCut) >= 5 % needs to have enough points for decent fit
+            
             [cfit_pre, rn_pre, res, fcnp] = fit_constriction_data(dat(ii).preTimeCut, dat(ii).preDiamCut, ud.model); % parabolic fit
-%             [cfit_prel, rn_prel, resl, fcnl] = fit_constriction_data(dat(ii).preTimeCut, dat(ii).preDiamCut, 'linear'); % linear fit
             
             % calculate goodness-of-fit metrics
             sst_pre = sum((dat(ii).preDiamCut - mean(dat(ii).preDiamCut)).^2); % sum of squares total
@@ -256,6 +248,24 @@ if ud.fit_dat
             sst_pre_con = sum((onlyconpre - mean(onlyconpre)).^2);
             R2_pre_con = 1 - resnorm_onlyconpre/sst_pre_con;
             X2_pre_con = sum((onlyconpre-fcnp(cfit_pre,t_onlyconpre)).^2) / length(onlyconpre);
+            
+            % calculate difference between 2B disappearance time and
+            % predicted end of constriction. Since d0 is not constant
+            % for each trace, can't use simple formula for end time of
+            % constriction.
+            if ud.compare_linear_fit
+                [cfit_prel, rn_prel, resl, fcnl] = fit_constriction_data(dat(ii).preTimeCut, dat(ii).preDiamCut, 'linear'); % linear fit
+                
+                gone2b = dat(ii).cuttime(end);
+                tvf2 = dat(ii).preTimeCut(1):0.01:dat(ii).preTimeCut(end)+50;
+                pararray = fcnp(cfit_pre, tvf2);
+                parzero = find(~pararray, 1, 'first');
+                teffp = tvf2(parzero); % can't use fzero because lot of zeros
+                teffl = fzero(@(x)fcnl(cfit_prel,x), cfit_pre(1));
+                
+                dat(ii).diff_parabolic_gone2b = teffp - gone2b;
+                dat(ii).diff_linear_gone2b = teffl - gone2b;
+            end
         else
             cfit_pre = [];
             fcnp = [];
@@ -276,8 +286,9 @@ if ud.fit_dat
         dat(ii).fitDat.XSq = X2_pre;
         dat(ii).fitDat.XSq_pre_con = X2_pre_con;
 
-        % fit post-treatment data
+        % fit post-treatment data (if it exists)
         if length(dat(ii).postTimeCut)>=5 && any(dat(ii).postTimeCut<=dat(ii).param.t_cpd+1) % bit shoddy, but works
+            
             [cfit_post, rn_post, res, fcnp] = fit_constriction_data(dat(ii).postTimeCut, dat(ii).postDiamCut, ud.model);
             
             % calculate goodness-of-fit metrics
@@ -303,174 +314,173 @@ if ud.fit_dat
         dat(ii).fitDat.postRsq = R2_post;
         dat(ii).fitDat.postRsq_con = R2_post_con;
         dat(ii).fitDat.n_post = n_post;
-
-        % partition thickness traces into decondensed and condensed
-        if ud.segment_thickness
-            
-            seg_t={}; seg_d={}; clr={}; dur=[];
-            if n_pre > 5
-
-                % using state change
-                if ud.state_change
-%                     [inds, switchPt, muse] = detectZRcondensation(d_thick, 'MinSpatialDist', 50, 'Statistic', 'std'); % from point change
-
-                    % state change analysis only on pre-constriction data
-                    % 210121
-                    [inds, switchPt, muse] = detectZRcondensation(d_thick(t_thick<cfit_pre(1)), 'MinSpatialDist', 50, 'Statistic', 'std'); % from point change
-
-                    inds(inds==2) = 0; % for consistency with threshold case
-                    inds = [inds; ones(length(d_thick)-length(inds),1)]; % add all constricting points too 210202
-
-                    transind = [0; switchPt(switchPt~=-1); length(inds)];
-                    
-                    if switchPt ~= -1
-                        dat(ii).fitDat.t_condense = t_thick(switchPt);
-                    else
-                        dat(ii).fitDat.t_condense = 0;
-                    end
-                else % using threshold
-                    %                 thick_cut = 422; % [nm] mean + 3*sigma for 'condensed' state of wt FtsZ-GFP
-                    %                 thick_cut = 389;% [nm] mean + 2*sigma for 'condensed' state of wt FtsZ-GFP
-                    thick_cut = 356;% [nm] mean + 1*sigma for 'condensed' state of wt FtsZ-GFP
-                    %                 dax_c_sm = smooth(dax_c, 3);
-                    d_thick_sm = d_thick;
-                    inds = d_thick_sm < thick_cut;
-                    trans = inds(1:end-1) - inds(2:end);
-                    transind = [0; find(trans==-1); find(trans==1); length(inds)];
-                    transind = sort(transind);
-                end
-                
-                % segmentation
-                for kk = 1:length(transind)-1
-                    seg_t{kk} = t_thick(transind(kk)+1:transind(kk+1));
-                    seg_d{kk} = d_thick(transind(kk)+1:transind(kk+1));
-                    if ~isempty(t_thick) && transind(kk)+1<t_thick(end) && ~isempty(inds) && inds(transind(kk)+1)==0 % decondensed
-                        clr{kk} = 'r';
-                    elseif ~isempty(t_thick) % condensed
-                        clr{kk} = 'k';
-                        
-                        % find every consecutive stretch of 'condensed'
-                        % state prior to constriction, measure length of
-                        % segment
-                        precons = seg_t{kk}-cfit_pre(1);
-                        precons = precons(precons<=0);
-                        dur(kk) = length(precons);
-                        %  dur(kk) = length(seg_t{kk});
-                    end
-                end
-                
-                dat(ii).cond_dur = max([0 dur]);
-                
-                allprecons = dat(ii).preTimeCut-cfit_pre(1);
-                allprecons = allprecons(allprecons<=0); % need to be sure there are actually points there to compare
-                if length(allprecons)>=1 && ~isempty(dat(ii).cond_dur) && dat(ii).cond_dur>=1 % condensation for 1 point pre-constriction
-                    dat(ii).didcond = 1;
-                elseif length(allprecons)>=1 && ~isempty(dat(ii).cond_dur) && dat(ii).cond_dur<1 % no condensation for 1 point pre-constriction (but there was 1 data point)
-                    dat(ii).didcond = 0;
-                end
-                
-                postcon_num = postcon_num+1;
-                dax_precons = [dax_precons; d_thick(t_thick<cfit_pre(1))];
-                dax_postcons = [dax_postcons; d_thick(t_thick>=cfit_pre(1))];
-            elseif n_pre>5 && ~isempty(t_thick)
-                transind = [0 t_thick(end)];
-                seg_t{1} = t_thick;
-                seg_d{1} = d_thick;
-                clr{1} = 'b';
-            else
-                transind = 0;
-            end
-        end
-        
-        % 3. plot the data with fits
-        
-        if plot_fitted_dat
-            
-            % plot data pre-treatment
-            if R2_pre_con > ud.err_thresh_constriction_R2 && n_pre>5
-                
-                if strcmp(ud.alignment, 'tcpd')
-                    shift = dat(ii).param.t_cpd; % define t=0 as treatment time
-                elseif strcmp(ud.alignment, 't0')
-                    shift = cfit_pre(1); % define t=0 as constriction start time
-                end
-                
-                % hold(ax1,'off')
-                % hold(ax2,'off')
-                
-                % plot diameters, shifted by either treatment time or
-                % constriction start time
-                plot(ax1, dat(ii).preTimeCut-shift, dat(ii).preDiamCut, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre'])
-                
-                if plot_model
-                    tvf = dat(ii).preTimeCut(1):0.1:dat(ii).preTimeCut(end);
-                    plot(ax1, tvf-shift, fcnp(cfit_pre,tvf), 'k', 'DisplayName', '')
-                end
-                
-                %                 circ = dat(ii).cutdiams*pi; % circumferences
-                %                 plot(ax2, dat(ii).cuttime-shift, dat(ii).cutint, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre']) % density
-                
-%                 plot(ax2, tax_c-shift, dat(ii).cutstd_ax, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre'])
-                
-%                 ind_tcon = find(abs(tax_c-cfit_pre(1)) < 0.5, 1, 'first');
-%                 if ~isempty(ind_tcon)
-%                     dense_ax = dat(ii).cutint_ax ./ dax_c;
-%                     ax_int_con = dense_ax(ind_tcon);
-%                     dense_ax = dense_ax / ax_int_con;
-%                     plot(ax2, tax_c-shift, dense_ax, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre']) % density
-%                 end
-                
-%                 wind = 7;
-%                 [~, ~, pval] = ttesttrace2(tax_c, dax_c, 0.3, wind);
-%                 plot(ax2, tax_c(1:end-wind)-shift, -log10(pval), 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre'])
-
-                if ud.segment_thickness
-                    % plot segmented thickness traces
-                    for kk = 1:length(transind)-1
-                        if ~isempty(t_thick)
-                            plot(ax2, seg_t{kk}-shift, seg_d{kk}, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre'], 'Color', clr{kk})
-                            %                     hold(ax2,'on')
-                        end
-                    end
-                %                 plot(ax2, tax_c(cond==1)-shift, dax_c(cond==1), 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre'], 'linew', 1, 'Color', 'k')
-                %                 plot(ax2, tax_cond-shift, dax_cond, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre'], 'linew', 1, 'Color', 'k')
-                %                 hold(ax2,'on')
-                %                 plot(ax2, tax_c(cond==2)-shift, dax_c(cond==2), 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre'], 'linew', 1, 'Color', 'r')
-                %                 plot(ax2, tax_decond-shift, dax_decond, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre'], 'linew', 1, 'Color', 'r')
-                else
-%                     dax_precons = [dax_precons; dax_c(tax_c<cfit_pre(1))];
-                    dax_precons = d_thick(t_thick<cfit_pre(1));
-%                     std_precons(ii) = std(dax_precons);
-                    plot(ax2, t_thick-shift, d_thick, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre'])
-                end
-
-                % calculate difference between 2B disappearance time and
-                % predicted end of constriction. Since d0 is not constant
-                % for each trace, can't use simple formula for end time of
-                % constriction.
-%                 gone2b = dat(ii).cuttime(end);
-%                 tvf2 = dat(ii).preTime(1):0.01:dat(ii).preTime(end)+50;
-%                 pararray = fcnp(cfit_pre, tvf2);
-%                 parzero = find(~pararray, 1, 'first');
-%                 teffp = tvf2(parzero); % can't use fzero because lot of zeros
-%                 teffl = fzero(@(x)fcnl(cfit_prel,x), cfit_pre(1));
-                
-%                 diffp = [diffp; teffp-gone2b];
-%                 diffl = [diffl; teffl-gone2b];
-            end
-            
-            % plot data post-treatment (if exists)
-            if R2_post_con > ud.err_thresh_constriction_R2 && n_post>5
-%                 plot(ax1, dat(ii).postTimeCut-shift, dat(ii).postDiamCut, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_post'], 'linew', 1)
-                
-                if plot_model
-                    tvf = dat(ii).postTimeCut(1):0.1:dat(ii).postTimeCut(end);
-                    plot(ax1, tvf-shift, fcnp(cfit_post,tvf), 'r', 'DisplayName', '')
-                end
-            end
-            
-        end
     end
+end
+
+%% Segment thickness data into decondensed and condensed
+if ud.segment_thickness
+    
+    dax_precons=[]; dax_postcons=[]; postcon_num=0;
+    for ii = 1:length(dat)
+        
+        t_thick = dat(ii).cuttime_ax(:);
+        d_thick = dat(ii).cutdiams_ax(:);
+        
+        seg_t={}; seg_d={}; clr={}; dur=[];
+        if dat(ii).fitDat.n_pre > 5
+            
+            % using state change
+            if ud.state_change
+                %                     [inds, switchPt, muse] = detectZRcondensation(d_thick, 'MinSpatialDist', 50, 'Statistic', 'std'); % from point change
+                
+                % state change analysis only on pre-constriction data
+                % 210121
+                [inds, switchPt, muse] = detectZRcondensation(d_thick(t_thick<dat(ii).fitDat.preFitVals(1)), 'MinSpatialDist', 50, 'Statistic', 'std'); % from point change
+                
+                inds(inds==2) = 0; % for consistency with threshold case
+                inds = [inds; ones(length(d_thick)-length(inds),1)]; % add all constricting points too 210202
+                
+                transind = [0; switchPt(switchPt~=-1); length(inds)];
+                
+                if switchPt ~= -1
+                    dat(ii).fitDat.t_condense = t_thick(switchPt);
+                else
+                    dat(ii).fitDat.t_condense = 0;
+                end
+            else % using threshold
+                %                 thick_cut = 422; % [nm] mean + 3*sigma for 'condensed' state of wt FtsZ-GFP
+                %                 thick_cut = 389;% [nm] mean + 2*sigma for 'condensed' state of wt FtsZ-GFP
+                thick_cut = 356;% [nm] mean + 1*sigma for 'condensed' state of wt FtsZ-GFP
+                %                 dax_c_sm = smooth(dax_c, 3);
+                d_thick_sm = d_thick;
+                inds = d_thick_sm < thick_cut;
+                trans = inds(1:end-1) - inds(2:end);
+                transind = [0; find(trans==-1); find(trans==1); length(inds)];
+                transind = sort(transind);
+            end
+            
+            % segmentation
+            for kk = 1:length(transind)-1
+                seg_t{kk} = t_thick(transind(kk)+1:transind(kk+1));
+                seg_d{kk} = d_thick(transind(kk)+1:transind(kk+1));
+                if ~isempty(t_thick) && transind(kk)+1<t_thick(end) && ~isempty(inds) && inds(transind(kk)+1)==0 % decondensed
+                    clr{kk} = 'r';
+                elseif ~isempty(t_thick) % condensed
+                    clr{kk} = 'k';
+                    
+                    % find every consecutive stretch of 'condensed'
+                    % state prior to constriction, measure length of
+                    % segment
+                    precons = seg_t{kk}-dat(ii).fitDat.preFitVals(1);
+                    precons = precons(precons<=0);
+                    dur(kk) = length(precons);
+                    %  dur(kk) = length(seg_t{kk});
+                end
+            end
+            
+            dat(ii).cond_dur = max([0 dur]);
+            
+            allprecons = dat(ii).preTimeCut-dat(ii).fitDat.preFitVals(1);
+            allprecons = allprecons(allprecons<=0); % need to be sure there are actually points there to compare
+            if length(allprecons)>=1 && ~isempty(dat(ii).cond_dur) && dat(ii).cond_dur>=1 % condensation for 1 point pre-constriction
+                dat(ii).didcond = 1;
+            elseif length(allprecons)>=1 && ~isempty(dat(ii).cond_dur) && dat(ii).cond_dur<1 % no condensation for 1 point pre-constriction (but there was 1 data point)
+                dat(ii).didcond = 0;
+            end
+            
+            postcon_num = postcon_num + 1;
+            dax_precons = [dax_precons; d_thick(t_thick<dat(ii).fitDat.preFitVals(1))];
+            dax_postcons = [dax_postcons; d_thick(t_thick>=dat(ii).fitDat.preFitVals(1))];
+        elseif dat(ii).fitDat.n_pre>5 && ~isempty(t_thick)
+            transind = [0 t_thick(end)];
+            seg_t{1} = t_thick;
+            seg_d{1} = d_thick;
+            clr{1} = 'b';
+        else
+            transind = 0;
+        end
+        
+        dat(ii).fitDat.thick_transition_ind = transind;
+        dat(ii).fitDat.thick_segment_time = seg_t;
+        dat(ii).fitDat.thick_segment = seg_d;
+        dat(ii).fitDat.thick_segment_clr = clr;
+    end
+end
+
+%% Plot fitted diameters and thickness data
+if plot_fitted_dat
+    
+    figure('FileName', [path '/' datestr(now,'yymmdd') '_fit_dat.fig'])
+    ax1 = subplot(211);
+    hold(ax1, 'on')
+    box(ax1, 'on')
+    ax2 = subplot(212);
+    hold(ax2, 'on')
+    box(ax2, 'on')
+    
+    for ii = 1:length(dat)
+        
+        if strcmp(ud.alignment, 'tcpd') % define t=0 as treatment time
+            shift = dat(ii).param.t_cpd;
+        elseif strcmp(ud.alignment, 't0') && ~isempty(dat(ii).fitDat.preFitVals) % define t=0 as constriction start time
+            shift = dat(ii).fitDat.preFitVals(1);
+        else
+            shift = 0;
+        end
+        
+        % PLOT DIAMETERS
+        % plot data pre-treatment
+        if dat(ii).fitDat.preRsq_con > ud.err_thresh_constriction_R2 && dat(ii).fitDat.n_pre>5
+            
+            % plot diameters, shifted by either treatment time or
+            % constriction start time
+            plot(ax1, dat(ii).preTimeCut-shift, dat(ii).preDiamCut, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre'])
+            
+            if plot_model
+                tvf = dat(ii).preTimeCut(1):0.1:dat(ii).preTimeCut(end);
+                plot(ax1, tvf-shift, dat(ii).fcn(dat(ii).fitDat.preFitVals,tvf), 'k', 'DisplayName', '')
+            end
+        end
+        
+        % plot data post-treatment (if exists) (diameters only)
+        if dat(ii).fitDat.postRsq_con > ud.err_thresh_constriction_R2 && dat(ii).fitDat.n_post>5
+            plot(ax1, dat(ii).postTimeCut-shift, dat(ii).postDiamCut, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_post'], 'linew', 1)
+            
+            if plot_model
+                tvf = dat(ii).postTimeCut(1):0.1:dat(ii).postTimeCut(end);
+                plot(ax1, tvf-shift, dat(ii).fcn(dat(ii).fitDat.postFitVals,tvf), 'r', 'DisplayName', '')
+            end
+        end
+        
+        % PLOT THICKNESSES
+        if ud.segment_thickness && dat(ii).fitDat.n_pre>5 && dat(ii).fitDat.preRsq_con > ud.err_thresh_constriction_R2
+            % plot segmented thickness traces
+            for kk = 1:length(dat(ii).fitDat.thick_transition_ind)-1
+                if ~isempty(dat(ii).cuttime_ax)
+                    plot(ax2, dat(ii).fitDat.thick_segment_time{kk}-shift, dat(ii).fitDat.thick_segment{kk},...
+                        'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre'], 'Color',...
+                        dat(ii).fitDat.thick_segment_clr{kk})
+                end
+            end
+        elseif dat(ii).fitDat.n_pre>5 && dat(ii).fitDat.preRsq_con > ud.err_thresh_constriction_R2
+            plot(ax2, dat(ii).cuttime_ax-shift, dat(ii).cutdiams_ax, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre'])
+        end
+        
+        % PLOT DENSITIES
+        % plot radial filament density
+        %         circ = dat(ii).cutdiams*pi; % circumferences
+        %         plot(ax3, dat(ii).cuttime-shift, dat(ii).cutint, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre']) % density
+        
+        % plot axial filament density
+%         ind_tcon = find(abs(dat(ii).cuttime_ax-dat(ii).fitDat.preFitVals(1)) < 0.5, 1, 'first');
+%         if ~isempty(ind_tcon)
+%             dense_ax = dat(ii).cutint_ax ./ dat(ii).cutdiams_ax;
+%             ax_int_con = dense_ax(ind_tcon);
+%             dense_ax = dense_ax / ax_int_con;
+%             plot(ax3, dat(ii).cuttime_ax-shift, dat(ii).cutdiams_ax, 'DisplayName', [dat(ii).param.tracks_file(1:21) num2str(dat(ii).num) '\_pre']) % density
+%         end
+    end
+    
     linkaxes([ax1 ax2], 'x')
     set(gcf, 'UserDat', ud)
 end
