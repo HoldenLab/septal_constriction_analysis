@@ -11,7 +11,8 @@
 % filter section (was in fitting section).
 
 % This version was used for revision 2 of the Whitley et al. 2020 FtsZ
-% treadmilling paper.
+% treadmilling paper. It's a pretty messy version, but for reproducibility
+% is the version used for that submission. Future versions will be nicer.
 
 ud.filter_dat = 1; % filter data based on fitting error, etc.
     ud.err_thresh_thick_R2 = 0.90; % thickness error threshold. error is R^2
@@ -141,16 +142,7 @@ if ud.filter_dat
         dDdt_thresh = 5; % threshold for first derivative
         quartind = floor(length(dDdt_s)/4) + 1; % quarterway mark of trace (can't remove any flat parts at beginning). +1 needed to handle super short traces.
         indx = min([find(dDdt_s(quartind:end)>=dDdt_thresh, 1, 'first')+quartind-1 length(tdat_rad)]);
-        
 
-
-        % TEST: revert 210125
-%         dDdt_s = smooth(dDdt,10);
-%         halfind = floor(length(dDdt_s)/2) + 1; % +1 is extra test
-%         indx = min([find(dDdt_s(halfind:end)>=dDdt_thresh, 1, 'first')+halfind length(tdat_rad)]);
-%         
-
-        
         tdat_rad_c = tdat_rad(1:indx); % cut times (flat ends removed)
         raddat_c = diam_dat(1:indx); % cut diameters
         ints_c = int_dat(1:indx); % cut intensities

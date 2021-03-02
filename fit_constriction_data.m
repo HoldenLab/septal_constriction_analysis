@@ -16,11 +16,6 @@ switch model
         b0 = [(tdat(end)-tdat(1))/2+tdat(1) 1e4 650]; % fixed 210119
         lb = [tdat(1)-50 5e3 600];
         ub = [tdat(end) 3e5 1300];
-        
-        % TEST: revert to old parameters 210125
-%         b0 = [(tdat(end)-tdat(1))/2 5e4 900];
-%         lb = [tdat(1)-5 5e3 600];
-%         ub = [tdat(end) 3e5 1300];
     case 'logistic'
         nt = @(a,t) (t + 1/a(1)*log(abs((1+exp(-a(1)*(t-a(2))))/(1+exp(a(1)*a(2)))))); % total synthase activity over time (integral of generic logistic function)
 %         fcn = @(a,t) sqrt(w0^2 - a(1)*nt([a(2) a(3)],t));

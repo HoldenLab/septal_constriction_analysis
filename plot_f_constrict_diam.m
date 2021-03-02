@@ -26,14 +26,14 @@ plot_f_con_vs_2Bintensity = 0; % vs. PBP2B intensity
 plot_f_con_vs_Zintensity = 0; % vs. FtsZ intensity
 plot_f_con_manualclass = 0; % vs. division stage, manually classified (column 13)
 plot_f_con_autoclass = 0; % vs. division stage, automatically classified by diameter and thickness
-plot_f_con_2Bint_norm = 0; % vs. low/high PBP2B intensity (normalized if possible)
+plot_f_con_2Bint_norm = 1; % vs. low/high PBP2B intensity (normalized if possible)
 plot_f_con_Zint_norm = 0; % vs. low/high FtsZ intensity (normalized if possible)
 
 % make scatter plots of various properties and whether septa continued
 % division post-treatment
-plot_scatter_diameter_thickness = 1; % septal diameter vs. thickness
-plot_scatter_diameter_2Bintensity = 0; % septal diameter vs. PBP2B intensity (normalized if possible)
-plot_scatter_diameter_Zintensity = 0; % septal diameter vs. FtsZ intensity (normalized if possible)
+plot_scatter_diameter_thickness = 0; % septal diameter vs. thickness
+plot_scatter_diameter_2Bintensity = 1; % septal diameter vs. PBP2B intensity (normalized if possible)
+plot_scatter_diameter_Zintensity = 1; % septal diameter vs. FtsZ intensity (normalized if possible)
 plot_scatter_2Bintensity_Zintensity = 0; % PBP2B intensity vs. FtsZ intensity (both normalized if possible)
 
 plot_f_condense_thickness = 0; % make stacked bar plot of % septa condensed post-treatment vs. septal thickness
@@ -42,7 +42,7 @@ plot_scatter_diameter_thickness_condense = 0; % make scatter plot of septal diam
 plot_f_low2B_increase = 0; % make stacked bar plot of % septa where low PBP2B signal increased post-treatment
 
 ud.use_relative_diameter = 1; % use relative septal diameter (otherwise use absolute)
-ud.is_2color = 0; % is this the 2-color strain?
+ud.is_2color = 1; % is this the 2-color strain?
 
 if ud.is_2color
     thickness_thresh = 450; % [nm] 2-color (poor SNR)
@@ -63,15 +63,15 @@ ud.thick_err_cut = [0.7 1]; % cut on error in fitting for axial diameters. Using
 % ud.diam_err_cut = [0 0.7]; % cut on radial fitting error. Using residual norm (before 201018)
 % ud.thick_err_cut = [0 1]; % cut on error in fitting for axial diameters. Using error in one fit parameter (before 201018)
 
-% ud.thick_cut = [0 thickness_thresh] /65; % [pix] cut on axial width
-ud.thick_cut = [0 Inf] /65; % [pix] cut on axial width
+ud.thick_cut = [0 thickness_thresh] /65; % [pix] cut on axial width
+% ud.thick_cut = [0 Inf] /65; % [pix] cut on axial width
 
 ud.int_2b_cut = [0 Inf]; % cut on 2B intensity
 ud.class_cut = [0 Inf]; % cut on classification
 ud.int_Z_cut = [0 Inf]; % cut on Z intensity
 if ud.use_relative_diameter
     radcut = 0.9;
-    ud.rel_diam_cut = [0 1.3]; % cut on relative diameter
+    ud.rel_diam_cut = [radcut 1.3]; % cut on relative diameter
 else
     radcut = 700;
 end

@@ -23,8 +23,9 @@ if param.plot_im_fits
     figure('Position',[700 100 800 600])
     h_im = subplot(221);
     h_rotim = subplot(222);
-    h_rad = subplot(223);
-    h_ax = subplot(224);
+    h_rad = subplot(234);
+    h_ax = subplot(235);
+    h_ax_res = subplot(236);
 end
 
 superGaussian = @(a,x) a(4) * exp(-((x-a(1)).^2 / (2*a(2)^2)).^ a(3)) + a(5); % background and amplitude float
@@ -33,7 +34,7 @@ superGaussian = @(a,x) a(4) * exp(-((x-a(1)).^2 / (2*a(2)^2)).^ a(3)) + a(5); % 
 improfs = NaN(size(imstack,3), ceil(size(imstack,1)*sqrt(2)));
 orthprof = improfs;
 fitvals = NaN(size(imstack,3),3);
-fitvals_ax = NaN(size(imstack,3),2);
+fitvals_ax = NaN(size(imstack,3),3);
 
 for ii = 1:size(imstack,3)
     %% Process image - find septal axis
@@ -205,8 +206,12 @@ for ii = 1:size(imstack,3)
         % fit line profile to supergaussian function, calculate FWHM
         x_ax = 1:length(ip_ax);
         lb = [0 0 1 0 0];
-        [fitax, rn] = lsqcurvefit(superGaussian, initguess_ax, x_ax, ip_ax, lb, [], options);
+        [fitax, rn, thickres] = lsqcurvefit(superGaussian, initguess_ax, x_ax, ip_ax, lb, [], options);
         
+        ip_ind_min = max([floor(fitax(1)-5) 1]);
+        ip_ind_max = min([ceil(fitax(1)+5) length(ip_ax)]);
+        ip_ax_norm = (ip_ax-min(ip_ax)) / (max(ip_ax)-min(ip_ax));
+        thickstd = std(ip_ax_norm(ip_ind_min:ip_ind_max));
         sigma = fitax(2);
         superexp = fitax(3);
         FWHM_ax = 2*sqrt(2)*sigma*(log(2))^(1/(2*superexp));
@@ -215,7 +220,7 @@ for ii = 1:size(imstack,3)
         sst_ax = sum((ip_ax - mean(ip_ax)).^2);
         Rsq_ax = 1 - rn/sst_ax;
         
-        fitvals_ax(ii,:) = [FWHM_ax Rsq_ax];
+        fitvals_ax(ii,:) = [FWHM_ax Rsq_ax thickstd];
         
     end
 
@@ -254,6 +259,14 @@ for ii = 1:size(imstack,3)
         title(h_ax, 'Line profile orthogonal to septum')
         xlabel(h_ax, 'Distance orthogonal to septum (pix)')
         ylabel(h_ax, 'Raw intensity')
+        
+        hold(h_ax_res, 'off')
+        plot(h_ax_res, thickres, 'Color', 'r', 'linew', 2)
+        hold(h_ax_res, 'on')
+        
+        plot(h_ax_res, tv, zeros(1,length(tv)), 'b');
+        title(h_ax_res, 'Residual of thickness line profile fit')
+        ylabel(h_ax_res, 'Residual')
     end
 end
 

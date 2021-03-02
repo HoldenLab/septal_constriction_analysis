@@ -113,6 +113,7 @@ for ii = tracknums
     
     FWHM_ax = fit_ax(:,1) *param.pixSz; % [nm]
     se_ax = fit_ax(:,2); % R^2 from fit to super-gaussian
+    std_ax = fit_ax(:,3);
 
     intensity = nansum(improfs_rad, 2);
     intensityMedian = median(improfs_rad, 2, 'omitnan');
@@ -120,6 +121,8 @@ for ii = tracknums
     int_ex = sum(~isnan(improfs_rad),2) <= 5; % profiles with fewer than 5 real values
     intensity(int_ex) = NaN; % exclude if too few real values
     intensityMedian(int_ex) = NaN;
+    
+    int_ax = nansum(improfs_ax, 2);
 
     ud.datUnfilt(ii).num = ii;
     ud.datUnfilt(ii).time = time;
@@ -128,6 +131,8 @@ for ii = tracknums
     ud.datUnfilt(ii).fiterrs = fiterrs_rad;
     ud.datUnfilt(ii).FWHM_ax = FWHM_ax;
     ud.datUnfilt(ii).se_ax = se_ax;
+    ud.datUnfilt(ii).int_ax = int_ax;
+    ud.datUnfilt(ii).std_ax = std_ax;
     ud.datUnfilt(ii).intensity = intensity;
     ud.datUnfilt(ii).intensityMedian = intensityMedian;
 
