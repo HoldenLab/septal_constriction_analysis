@@ -63,8 +63,8 @@ ud.thick_err_cut = [0.7 1]; % cut on error in fitting for axial diameters. Using
 % ud.diam_err_cut = [0 0.7]; % cut on radial fitting error. Using residual norm (before 201018)
 % ud.thick_err_cut = [0 1]; % cut on error in fitting for axial diameters. Using error in one fit parameter (before 201018)
 
-ud.thick_cut = [0 thickness_thresh] /65; % [pix] cut on axial width
-% ud.thick_cut = [0 Inf] /65; % [pix] cut on axial width
+% ud.thick_cut = [0 thickness_thresh] /65; % [pix] cut on axial width
+ud.thick_cut = [0 Inf] /65; % [pix] cut on axial width
 
 ud.int_2b_cut = [0 Inf]; % cut on 2B intensity
 ud.class_cut = [0 Inf]; % cut on classification
