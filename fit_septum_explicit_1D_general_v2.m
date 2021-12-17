@@ -284,7 +284,7 @@ pixSz = param.pixSz;
 prof_model = septum_model_1D_amp_private(mu, R, psfFWHM, pixSz, range, bg, amp);
 
 sp = range(2)-range(1); % spacing
-prof_model = downsample(prof_model, uint8(1/sp)); % same number of points as image profile
+prof_model = downsample(prof_model, uint16(1/sp)); % same number of points as image profile
 
 diff = prof_im - prof_model;
 
