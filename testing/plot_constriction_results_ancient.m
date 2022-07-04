@@ -22,6 +22,8 @@ chiSq_thresh = 6e4;
 Rsq_thresh = 0.8;
 % t0_thresh = 1000; % [min] standard error from fit
 % alph_thresh = 6e11; % [nm^2/min] standard error from fit
+todaysdate = datetime("today");
+tday = datestr(todaysdate,'yymmdd');
 
 d0 = 1000; % fix d0 for calculating teff FIGURE OUT WHAT THIS NUMBER IS!!
 
@@ -261,7 +263,7 @@ end
 % end
 
 if plot_teff
-    figure('FileName', [path '/' today '_teff.fig'])
+    figure('FileName', [path '/' tday '_teff.fig'])
     hold on
     box on
     
