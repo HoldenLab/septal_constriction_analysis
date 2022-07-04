@@ -21,47 +21,79 @@ ud.filter_dat = 1; % filter data based on fitting error, etc.
 ud.fit_dat = 1; % process and fit data to selected model for constriction
     ud.model = 'parabolic'; % constriction model to use
     ud.err_thresh_constriction_R2 = 0.8; % R^2 threshold for data to be plotted. also threshold for fitted values to be included in teff violin plots.
-ud.segment_thickness = 1; % segment thickness traces
+ud.segment_thickness = 0; % segment thickness traces
     ud.state_change = 1; % use state change to segment thicknesses.
 
 plot_unfitted_dat = 0; % plot data traces - filtered or raw
 plot_fitted_dat = 1; % plot processed traces with fitted model
     ud.alignment = 't0'; % align fitted traces. 't0' = constriction start time, 'tcpd' = compound arrival time
-    plot_model = 0; % plot fitted constriction model on top of traces
+    plot_model = 1; % plot fitted constriction model on top of traces
     
 plot_teff = 0; % make violin plots of effective constriction time (teff)
     ud.d0 = 1100; % fix d0 for calculating teff. updated 200625.
+plot_rate = 1; % make violin plots of constriction rate. added 220704.
 plot_perturbed = 0; % plot only traces where data was recorded DURING drug treatment
 plot_intensity = 0; % plot septal intensities over time
-plot_scatter = 1; % plot thickness vs. diameter scatter with division stage classification
+plot_scatter = 0; % plot thickness vs. diameter scatter with division stage classification
 
 %% Load variable dat, which has all raw (unfiltered) data from alldat2
 dat=[];
 for ii = 1:length(alldat2)
-    for jj = 1:length(alldat2(ii).datUnfilt)
-        
-        if str2double(alldat2(ii).param.analysis_date) < 200321 % old format. date is mostly a guess.
+    
+    if isfield(alldat2(ii),'datUnfilt')
+        for jj = 1:length(alldat2(ii).datUnfilt)
+            loaddat =           alldat2(ii).datUnfilt(jj);
+            loaddat.num =       alldat2(ii).datUnfilt(jj).num;
+            
+            loaddat.param =         alldat2(ii).param;
+            loaddat.im_date =       alldat2(ii).param.im_file(1:6);
+            posind =                strfind(alldat2(ii).param.im_file, 'Pos');
+            loaddat.pos =           alldat2(ii).param.im_file(posind:posind+3);
+            
+            dat = [dat; loaddat];
+        end
+    else
+        for jj = 1:length(alldat2(ii).rawDat)
             loaddat =           alldat2(ii).rawDat(jj);
             loaddat.FWHM_ax =   alldat2(ii).rawDat(jj).cutdiams_ax;
             loaddat.diam =      alldat2(ii).rawDat(jj).cutdiams;
             loaddat.time =      loaddat.cuttime;
             loaddat.time_ax =   loaddat.cuttime_ax;
-        else
-            loaddat =           alldat2(ii).datUnfilt(jj);
-        end
-        
-        if isfield(alldat2,'rawDat')
             loaddat.num =       alldat2(ii).rawDat(jj).num;
-        else
-            loaddat.num =       alldat2(ii).datUnfilt(jj).num;
+            
+            loaddat.param =         alldat2(ii).param;
+            loaddat.im_date =       alldat2(ii).param.im_file(1:6);
+            posind =                strfind(alldat2(ii).param.im_file, 'Pos');
+            loaddat.pos =           alldat2(ii).param.im_file(posind:posind+3);
+            
+            dat = [dat; loaddat];
         end
-        loaddat.param =         alldat2(ii).param;
-        loaddat.im_date =       alldat2(ii).param.im_file(1:6);
-        posind =                strfind(alldat2(ii).param.im_file, 'Pos');
-        loaddat.pos =           alldat2(ii).param.im_file(posind:posind+3);
-        
-        dat = [dat; loaddat];
     end
+    
+    %     for jj = 1:length(alldat2(ii).datUnfilt)
+%         
+%         if str2double(alldat2(ii).param.analysis_date) < 200321 % old format. date is mostly a guess.
+%             loaddat =           alldat2(ii).rawDat(jj);
+%             loaddat.FWHM_ax =   alldat2(ii).rawDat(jj).cutdiams_ax;
+%             loaddat.diam =      alldat2(ii).rawDat(jj).cutdiams;
+%             loaddat.time =      loaddat.cuttime;
+%             loaddat.time_ax =   loaddat.cuttime_ax;
+%         else
+%             loaddat =           alldat2(ii).datUnfilt(jj);
+%         end
+%         
+%         if isfield(alldat2,'rawDat')
+%             loaddat.num =       alldat2(ii).rawDat(jj).num;
+%         else
+%             loaddat.num =       alldat2(ii).datUnfilt(jj).num;
+%         end
+%         loaddat.param =         alldat2(ii).param;
+%         loaddat.im_date =       alldat2(ii).param.im_file(1:6);
+%         posind =                strfind(alldat2(ii).param.im_file, 'Pos');
+%         loaddat.pos =           alldat2(ii).param.im_file(posind:posind+3);
+%         
+%         dat = [dat; loaddat];
+%     end
 end
 
 %% Filter data frame-by-frame
@@ -130,6 +162,9 @@ if ud.filter_dat
         else % old format. data already mostly filtered.
             tdat_ax = dat(ii).time_ax(:);
             tdat_rad = time_dat;
+            raddat2 = diam_dat;
+            axdat2 = thick_dat;
+            tdat2 = time_dat;
         end
         
         % cut flat ends of traces (lingering intensity, not really
@@ -174,7 +209,8 @@ if ud.filter_dat
         raddat_c2 = raddat2(1:indx); % cut diameters
         if ~isempty(tdat_rad_c2)
             tdat_ax_c2 = tdat2(tdat2<tdat_rad_c2(end));
-            axdat_c2 = axdat2(tdat2<tdat_rad_c2(end));
+%             axdat_c2 = axdat2(tdat2<tdat_rad_c2(end));
+            axdat_c2 = axdat2(tdat_ax<tdat_rad_c2(end));
         else
             tdat_ax_c2 = tdat2;
             axdat_c2 = axdat2;
@@ -565,6 +601,38 @@ if plot_teff
         violinplot(teff_pre)
         
         ylabel('t_{eff} (min)')
+    end
+    set(gcf, 'UserDat', ud)
+end
+
+%% Make violin plots (with DABEST if possible) of constriction rates
+if plot_rate
+
+    rate_pre = []; rate_post = []; cat_pre = {}; cat_post = {};
+    for ii = 1:length(dat)
+
+        if ~isempty(dat(ii).fitDat) && dat(ii).fitDat.preRsq_con > ud.err_thresh_constriction_R2 && dat(ii).fitDat.n_pre>5
+            rate_pre = [rate_pre dat(ii).fitDat.preFitVals(2) / 60]; % [nm^2/s]
+            cat_pre = [cat_pre 'Untreated'];
+        end
+        
+        if ~isempty(dat(ii).fitDat) && dat(ii).fitDat.postRsq_con > ud.err_thresh_constriction_R2 && dat(ii).fitDat.n_post>5
+            rate_post = [rate_post dat(ii).fitDat.postFitVals(2) / 60]; % [nm^2/s]
+            cat_post = [cat_post 'Treated'];
+        end
+    end
+    
+    rates = [rate_pre rate_post]'; % [nm^2/s]
+    cats = [cat_pre cat_post]';
+    
+    if any(~isnan(rate_post))
+        violinplusdabest(rates, cats, {'Untreated', 'Treated'})
+    else
+        figure('FileName', [path '/' datestr(now,'yymmdd') '_teff.fig'])
+        
+        violinplot(rate_pre)
+        
+        ylabel('rate (nm^2/s)')
     end
     set(gcf, 'UserDat', ud)
 end
