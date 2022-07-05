@@ -43,7 +43,11 @@ for ii = 1:length(alldat2)
     if isfield(alldat2(ii),'datUnfilt')
         for jj = 1:length(alldat2(ii).datUnfilt)
             loaddat =           alldat2(ii).datUnfilt(jj);
-            loaddat.num =       alldat2(ii).datUnfilt(jj).num;
+            if isfield(alldat2(ii).datUnfilt,'num')  
+                loaddat.num =       alldat2(ii).datUnfilt(jj).num;
+            else
+                loaddat.num =       alldat2(ii).rawDat(jj).num;
+            end
             
             loaddat.param =         alldat2(ii).param;
             loaddat.im_date =       alldat2(ii).param.im_file(1:6);
