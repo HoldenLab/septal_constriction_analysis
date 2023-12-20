@@ -54,18 +54,18 @@ if param.plot_raw
     % set up figure for diameters/thicknesses
     h_fig = figure('FileName', fname, 'Position', [100 100 500 400]);
     
-    h_diam = subplot(211, 'box', 'on');
+    h_diam = subplot(311, 'box', 'on');
     hold on
     title(['Raw constriction traces for ' strrep(param.im_file,'_','\_')])
     ylabel('Diameter (nm)')
     
-    h_thick = subplot(212, 'box', 'on');
+    h_thick = subplot(312, 'box', 'on');
     hold on
     ylabel('Thickness (nm)')
     
-%     h_int = subplot(313, 'box', 'on');
-%     hold on
-%     ylabel('Intensity')
+    h_int = subplot(313, 'box', 'on');
+    hold on
+    ylabel('Intensity')
     xlabel('Time (min)')
     
 end
@@ -140,7 +140,7 @@ for ii = tracknums
 
         plot(h_diam, time, diams)
         plot(h_thick, time, FWHM_ax)
-%         plot(h_int, time, intensity)
+        plot(h_int, time, intensity)
 
     end
 

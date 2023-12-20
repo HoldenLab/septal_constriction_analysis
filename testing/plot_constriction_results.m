@@ -26,8 +26,8 @@ dat=[]; undat=[];
 for ii = 1:length(alldat2)
     for jj = 1:length(alldat2(ii).rawDat)
         
-%         rawdat = alldat2(ii).rawDat(jj);
-        unfiltdat = alldat2(ii).datUnfilt(jj);
+        rawdat = alldat2(ii).rawDat(jj);
+%         unfiltdat = alldat2(ii).datUnfilt(jj);
         
         unfiltdat.num = alldat2(ii).rawDat(jj).num;
         
@@ -40,9 +40,9 @@ for ii = 1:length(alldat2)
 %         rawdat.pos = alldat2(ii).param.im_file(posind:posind+3);
         unfiltdat.pos = alldat2(ii).param.im_file(posind:posind+3);
         
-%         dat = [dat; rawdat];
+        dat = [dat; rawdat];
 %         undat = [undat; unfiltdat];
-        dat = [dat; unfiltdat];
+%         dat = [dat; unfiltdat];
     end
 end
 
